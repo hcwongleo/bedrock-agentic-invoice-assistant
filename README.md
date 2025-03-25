@@ -69,7 +69,17 @@ npm run deploy-frontend
 ```
 4. Access to the application from [Cloudfront distribution URL](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/GettingStarted.SimpleDistribution.html)
 5. [Create cognito user](https://docs.aws.amazon.com/cognito/latest/developerguide/how-to-create-user-accounts.html#creating-a-new-user-using-the-console) in the user pool to access the application
-6. Delete the stack. We recommend using the AWS CloudFormation service page to delete/manage your CDK stacks as it offers many options to monitor stack drifts, identify errors, and provides better stability. Note: The deletion will fail if your S3 bucket is not empty, and the WAF stack will take longer to delete.
+6. Delete the stack. We recommend using the AWS CloudFormation service page to delete/manage your CDK stacks as it offers many options to monitor stack drifts, identify errors, and provides better stability. 
+
+Note: 
+- The deletion will fail if your S3 bucket is not empty
+- The WAF stack deletion takes 15-20 minutes
+- If CloudFormation deletion fails, review and manually delete these resources in the AWS Console:
+  - Bedrock Agents
+  - Bedrock Data Automation project
+  - Lambda functions and their associated CloudWatch log groups
+  - IAM roles
+  - Any remaining S3 buckets and their contents
 
 ### FAQ
 Q: Why isn't the review page showing the application list?
