@@ -80,3 +80,7 @@ A: If you're not seeing the application list on the review page, try clicking th
 Q: How can I clear my conversation history and terminate the current session?
 
 A: We use `userId` to track conversation history. To clear the history and terminate the current session, simply click the `Clear Chat` button in the chat interface.
+
+Q: Why are S3 buckets and CloudWatch logs still in my account?
+
+A: The S3 buckets and CloudWatch log groups are intentionally retained in your account as a safety measure to prevent accidental data loss during stack removal. To completely remove these resources, you'll need to manually delete them through the AWS Console or AWS CLI - first empty the S3 bucket contents before deletion, and CloudWatch log groups can be deleted directly.
