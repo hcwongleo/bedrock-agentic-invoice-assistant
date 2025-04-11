@@ -101,7 +101,7 @@ Note:
   - Any remaining S3 buckets and their contents
 
 ## Cost Estimation
-- Approximate cost: The Auto Loan Application will cost $40 month for 1,000 pages (us-west-2 region, April 2025)
+- Approximate cost: The Auto Loan Application will cost $226 per month for 1,000 pages, 28,800 requests (us-west-2 region, April 2025)
 - Recommend setting up [AWS Budget](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html)
 
 ### Cost Breakdown
@@ -111,12 +111,12 @@ Below you can see the estimated costs of the guidance solution and the assumptio
 | AWS service | Dimensions | Cost [USD] |
 |----------|----------|----------|
 | Amazon Bedrock Data Automation    | 1,000 documents (each 1 page) processed with Bedrock Data Automation     | $40  |
-| Amazon Bedrock Agent - Claude Sonnet 3.5 v2    | Average 2 requsts to the Bedrock agent per mintues, input tokens 1000 per request, output tokens 200 per request    | $173/month     |
-| AWS Lambda    | 28,000 requests per month on Arm with 512 MB ephemeral storage, 30s execution time     | $0.27     |
+| Amazon Bedrock Agent - Claude Sonnet 3.5 v2    | Average 2 requsts to the Bedrock agent per mintues, input tokens 1000 per request, output tokens 200 per request    | $173    |
+| AWS Lambda    | 28,800 requests per month on Arm with 512 MB ephemeral storage, 30s execution time     | $0.32     |
 | Amazon EventBridge    | 1 million events     | $1     |
 | Amazon Simple Storage Service (S3)   |  S3 Standard storage (10 GB per month)     | $0.24     |
 | Amazon CloudFront      | Data transfer out to internet cost: $0.85 and Data transfer out to origin cost: $0.20 (10 GB per month), 28,000 requests cost: $0.03  |  $1.08   |
-| Amazon Cognito     | 100 monthly active users (MAU) with Advanced security feature     | $10.75    |
+| Amazon Cognito     | 100 monthly active users (MAU) with Advanced security feature (WAF)     | $10.75    |
 
 ### FAQ
 Q: Why isn't the review page showing the application list?
