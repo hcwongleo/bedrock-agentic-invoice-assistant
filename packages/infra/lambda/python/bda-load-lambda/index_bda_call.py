@@ -36,7 +36,7 @@ def invoke_insight_generation_async(
         "dataAutomationConfiguration": {
             "dataAutomationProjectArn": data_project_arn,
         },
-        "dataAutomationProfileArn": f"arn:aws:bedrock:us-west-2:{str(ACCOUNT_ID)}:data-automation-profile/us.data-automation-v1",
+        "dataAutomationProfileArn": f"arn:aws:bedrock:us-east-1:{str(ACCOUNT_ID)}:data-automation-profile/us.data-automation-v1",
         "notificationConfiguration": {
         "eventBridgeConfiguration": {"eventBridgeEnabled": True},
         }

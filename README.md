@@ -101,7 +101,7 @@ Note:
   - Any remaining S3 buckets and their contents
 
 ## Cost Estimation
-- Approximate cost: The Auto Loan Application will cost $226 per month for 1,000 pages, 28,800 requests (us-west-2 region, April 2025)
+- Approximate cost: The Auto Loan Application will cost $226 per month for 1,000 pages, 28,800 requests (us-east-1 region, April 2025)
 - Recommend setting up [AWS Budget](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html)
 
 ### Cost Breakdown
