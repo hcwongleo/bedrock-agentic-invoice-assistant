@@ -2,8 +2,7 @@ import { CfnAgent } from 'aws-cdk-lib/aws-bedrock';
 
 export const FoundationModel = {
     'Claude3_5': "anthropic.claude-3-5-sonnet-20241022-v2:0",
-    'Nova_Pro': "amazon.nova-pro-v1:0",
-    'Nova_Premier': "amazon.nova-premier-v1:0"
+    'Nova_Pro': "amazon.nova-pro-v1:0"
 }
 
 export const MACAgentInstruction = {
