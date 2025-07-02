@@ -255,9 +255,9 @@ export const Portal = () => {
                 <SpaceBetween size="l">
                     <BreadcrumbGroup
                         items={[
-                            { text: "Morgage Loan Approval", href: "/" },
+                            { text: "Invoice Processing System", href: "/" },
                             { 
-                                text: "Loan Application List",
+                                text: "Invoice List",
                                 href: "/review",
                             },
                             { 
@@ -268,74 +268,72 @@ export const Portal = () => {
                         ariaLabel="Breadcrumbs"
                     />
     
-                    <Container header={<Header variant="h2">Application overview</Header>}>
+                    <Container header={<Header variant="h2">Invoice overview</Header>}>
                         <ColumnLayout columns={4} variant="text-grid">
                             <div>
-                                <Box variant="awsui-key-label">Application name</Box>
+                                <Box variant="awsui-key-label">Vendor name</Box>
                                 <Box variant="p">
-                                    {applicationData.applicant_details.primary_borrower.name}
+                                    {extractedData?.vendor || 'Unknown Vendor'}
                                 </Box>
                             </div>
                             <div>
-                                <Box variant="awsui-key-label">Marital status</Box>
+                                <Box variant="awsui-key-label">Invoice date</Box>
                                 <Box variant="p">
-                                    {getMaritalStatus(applicationData)}
+                                    {extractedData?.invoiceDate || new Date().toLocaleDateString()}
                                 </Box>
                             </div>
                             <div>
-                                <Box variant="awsui-key-label">Primary applicant annual income</Box>
+                                <Box variant="awsui-key-label">Invoice total amount</Box>
                                 <Box variant="p">
-                                    ${applicationData.applicant_details.primary_borrower.annual_income.toLocaleString()}
+                                    ${extractedData?.invoiceTotalAmount || '0.00'}
                                 </Box>
                             </div>
                             <div>
-                                <Box variant="awsui-key-label">Phone</Box>
+                                <Box variant="awsui-key-label">Currency</Box>
                                 <Box variant="p">
-                                    123-456-789
+                                    {extractedData?.currency || 'USD'}
                                 </Box>
                             </div>
 
                             <div>
-                                <Box variant="awsui-key-label">Co-applicant name</Box>
+                                <Box variant="awsui-key-label">Payment terms</Box>
                                 <Box variant="p">
-                                    {applicationData.applicant_details.co_borrower?.name || '-'}
+                                    {extractedData?.paymentTerms || 'Net 30'}
                                 </Box>
                             </div>
                             <div>
-                                <Box variant="awsui-key-label">Relationship with primary applicant</Box>
+                                <Box variant="awsui-key-label">Due date</Box>
                                 <Box variant="p">
-                                {applicationData?.applicant_details?.co_borrower?.name ? 'Spouse' : '-'}
+                                {extractedData?.dueDate || new Date(new Date().setDate(new Date().getDate() + 30)).toLocaleDateString()}
                                 </Box>
                             </div>
                             <div>
-                                <Box variant="awsui-key-label">Co-applicant annual income</Box>
+                                <Box variant="awsui-key-label">Bank account</Box>
                                 <Box variant="p">
-                                    {applicationData?.applicant_details?.co_borrower?.annual_income 
-                                        ? `$${applicationData.applicant_details.co_borrower.annual_income.toLocaleString()}`
-                                        : '-'}
+                                    {extractedData?.vendorBankAccount || '-'}
                                 </Box>
                             </div>
                             <div>
-                                <Box variant="awsui-key-label">Email</Box>
+                                <Box variant="awsui-key-label">Special remarks</Box>
                                 <Box variant="p">
-                                    doefamily@gmail.com
+                                    {extractedData?.specialRemarks || 'None'}
                                 </Box>
                             </div>
                         </ColumnLayout>
                     </Container>
     
-                    <Container header={<Header variant="h2">Loan details</Header>}>
+                    <Container header={<Header variant="h2">Invoice details</Header>}>
                         <ColumnLayout columns={4} variant="text-grid">
                             <div>
-                                <Box variant="awsui-key-label">Loan Amount Requested</Box>
+                                <Box variant="awsui-key-label">Invoice Total Amount</Box>
                                 <Box variant="p">
-                                    ${applicationData?.property_details?.mortgage_amount?.toLocaleString() || '-'}
+                                    ${extractedData?.invoiceTotalAmount?.toLocaleString() || '-'}
                                 </Box>
                             </div>
                             <div>
-                                <Box variant="awsui-key-label">Loan Type</Box>
+                                <Box variant="awsui-key-label">Currency</Box>
                                 <Box variant="p">
-                                    Fixed-rate
+                                    USD
                                 </Box>
                             </div>
                             <div>
@@ -363,15 +361,15 @@ export const Portal = () => {
                             </div>
 
                             <div>
-                                <Box variant="awsui-key-label">Loan-to-Value (LTV) Ratio</Box>
+                                <Box variant="awsui-key-label">Payment Terms</Box>
                                 <Box variant="p">
-                                    {applicationData?.property_details?.financing_percentage || '-'}%
+                                    Net 30
                                 </Box>
                             </div>
                             <div>
-                                <Box variant="awsui-key-label">Loan Term</Box>
+                                <Box variant="awsui-key-label">Due Date</Box>
                                 <Box variant="p">
-                                    {applicationData?.property_details?.loan_term || '30'} Years
+                                    {new Date(new Date().setDate(new Date().getDate() + 30)).toLocaleDateString()}
                                 </Box>
                             </div>
                             <div>
@@ -394,7 +392,7 @@ export const Portal = () => {
                     <Container 
                         header={
                             <Header variant="h2">
-                                Applicant's Files
+                                Invoice Documents
                             </Header>
                         }
                     >
@@ -550,7 +548,7 @@ export const Portal = () => {
                                 {
                                     documentName: "Invoice CSV Export",
                                     brief: "-",
-                                    recipient: "Applicant"
+                                    recipient: "Vendor"
                                 }
                             ]}
                             variant="embedded"
@@ -613,21 +611,21 @@ export const Portal = () => {
                                 return [
                                     {
                                         timestamp: addMinutesAndFormat(baseTime, 0), // Original timestamp
-                                        action: "Loan Application Received",
-                                        performedBy: "Applicant",
-                                        details: "Application submitted by applicant."
+                                        action: "Invoice Received",
+                                        performedBy: "Vendor",
+                                        details: "Invoice submitted for processing."
                                     },
                                     {
                                         timestamp: addMinutesAndFormat(baseTime, 30), // +30 minutes
                                         action: "Initial Review Completed",
-                                        performedBy: "Loan Approver",
-                                        details: "Verified applicant identity and documents."
+                                        performedBy: "Invoice Processor",
+                                        details: "Verified invoice details and extracted fields."
                                     },
                                     {
                                         timestamp: addMinutesAndFormat(baseTime, 45), // +45 minutes
                                         action: "Confirme doucment details",
-                                        performedBy: "AI assistant & Loan Approver",
-                                        details: "AI extracted income details; approver confirmed"
+                                        performedBy: "AI assistant & Invoice Processor",
+                                        details: "AI extracted invoice details; processor confirmed"
                                     },
                                     {
                                         timestamp: addMinutesAndFormat(baseTime, 59), // +59 minutes
