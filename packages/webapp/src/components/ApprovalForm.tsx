@@ -10,59 +10,72 @@ import {
     Checkbox,
     Modal,
     Icon,
-    Header
+    Header,
+    Textarea
 } from "@cloudscape-design/components";
 import { useMutation } from "@tanstack/react-query";
 import { appsyncResolver } from "../hooks/useApi";
 import { HtmlPreview } from './HtmlPreview';
 
 
-interface ApprovalFormProps {
+interface InvoiceFormProps {
     initialData: FormData | null;
     onPreview?: (formData: FormData) => void;
     onCancel: () => void;
 }
 
-interface GenerateLetterResponse {
+interface GenerateCsvResponse {
     success: boolean;
     result: string;
     statusCode: string;
 }
 
 interface FormData {
-    date: string;
-    mailAddress: string;
-    applicationName: string;
-    propertyAddressSameAsMail: boolean;
-    propertyAddress: string;
-    purchasePrice: string;
-    loanAmount: string;
-    loanTerms: string;
-    satisfactoryPurchaseAgreement: boolean;
-    sufficientAppraisal: boolean;
-    marketableTitle: boolean;
+    vendor: string;
+    invoiceDate: string;
+    paymentTerms: string;
+    dueDate: string;
+    currency: string;
+    invoiceTotalAmount: string;
+    invoiceLineItems: string;
+    specialRemarks: string;
+    vendorBankAccount: string;
+    bankCode: string;
+    swiftCode: string;
+    meterNumber: string;
+    deltaReadings: string;
+    supplier: string; // Enriched field
+    invoiceId: string;
+    documentClass: string;
+    confidence: string;
 }
 
-export const ApprovalForm: React.FC<ApprovalFormProps> = ({ 
+export const ApprovalForm: React.FC<InvoiceFormProps> = ({ 
     initialData,
     onCancel 
 }) => {
     const [formData, setFormData] = useState<FormData>(initialData || {
-        date: new Date().toISOString().split('T')[0],
-        mailAddress: '',
-        applicationName: '',
-        propertyAddressSameAsMail: false,
-        propertyAddress: '',
-        purchasePrice: '',
-        loanAmount: '',
-        loanTerms: '30-year conventional',
-        satisfactoryPurchaseAgreement: true,
-        sufficientAppraisal: true,
-        marketableTitle: true,
+        vendor: '',
+        invoiceDate: new Date().toISOString().split('T')[0],
+        paymentTerms: '',
+        dueDate: '',
+        currency: 'USD',
+        invoiceTotalAmount: '',
+        invoiceLineItems: '',
+        specialRemarks: '',
+        vendorBankAccount: '',
+        bankCode: '',
+        swiftCode: '',
+        meterNumber: '',
+        deltaReadings: '',
+        supplier: '', // Enriched field after vendor mapping
+        invoiceId: '',
+        documentClass: 'invoice',
+        confidence: ''
     });
 
     const [showPreviewModal, setShowPreviewModal] = useState(false);
-    const [generatedHtml, setGeneratedHtml] = useState('');
+    const [generatedCsv, setGeneratedCsv] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [showSuccessMessage, setShowSuccessMessage] = useState(false);
     const [isSending, setIsSending] = useState(false);
@@ -75,16 +88,16 @@ export const ApprovalForm: React.FC<ApprovalFormProps> = ({
 
     const handleSend = async () => {
         setIsSending(true);
-        // Simulate sending email - replace with actual API call if needed
+        // Simulate sending CSV - replace with actual API call if needed
         await new Promise(resolve => setTimeout(resolve, 1000));
         setShowSuccessMessage(true);
         setIsSending(false);
     };
 
-    const generateLetterMutation = useMutation<GenerateLetterResponse, Error, FormData>({
+    const generateCsvMutation = useMutation<GenerateCsvResponse, Error, FormData>({
         mutationFn: async (data: FormData) => {
             const payload = {
-                opr: "generate_approval_letter",
+                opr: "generate_csv",
                 ...data
             };
             const response = await appsyncResolver(JSON.stringify(payload));
@@ -92,26 +105,27 @@ export const ApprovalForm: React.FC<ApprovalFormProps> = ({
             console.log('Raw response from resolver:', response);
             const resultStr = response.data?.resolverLambda;
             if (resultStr) {
-                const htmlMatch = resultStr.match(/(<(?:!DOCTYPE html|div class).*?)(?:, statusCode=|$)/s);
+                // Look for CSV content in the response
+                const csvMatch = resultStr.match(/(.*?)(?:, statusCode=|$)/s);
 
-                if (htmlMatch && htmlMatch[1]) {
+                if (csvMatch && csvMatch[1]) {
                     return {
                         success: true,
-                        result: htmlMatch[1],
+                        result: csvMatch[1],
                         statusCode: "200"
                     };
                 }
             }
-            throw new Error("Failed to generate letter");
+            throw new Error("Failed to generate CSV");
         },
         onSuccess: (response) => {
-            console.log('Setting HTML content:', response.result);
-            setGeneratedHtml(response.result);
+            console.log('Setting CSV content:', response.result);
+            setGeneratedCsv(response.result);
             setIsGenerating(false);
         },
         onError: (error) => {
             console.error("Error details:", error);
-            const errorMessage = error.message || "Failed to generate letter";
+            const errorMessage = error.message || "Failed to generate CSV";
             setIsGenerating(false);
         }
     });
@@ -121,25 +135,17 @@ export const ApprovalForm: React.FC<ApprovalFormProps> = ({
         setShowPreviewModal(true);
         setIsGenerating(true);
         // Then trigger the generation
-        generateLetterMutation.mutate(formData);
+        generateCsvMutation.mutate(formData);
     };
 
     const handleInputChange = (field: keyof FormData, value: string | boolean) => {
         setFormData((prev: FormData) => ({ ...prev, [field]: value }));
-        
-        // If propertyAddressSameAsMail is checked, copy mail address to property address
-        if (field === 'propertyAddressSameAsMail' && value === true) {
-            setFormData((prev: FormData) => ({
-                ...prev,
-                propertyAddress: prev.mailAddress
-            }));
-          }
     };
 
     return (
     <>
         <SplitPanel 
-            header={"Loan Approval Letter"}
+            header={"Invoice Processing & CSV Generation"}
         >
             <Box padding="s">
                 <Form
@@ -157,7 +163,7 @@ export const ApprovalForm: React.FC<ApprovalFormProps> = ({
                             >
                                 <Box variant="awsui-gen-ai-label">
                                     <Icon size="small" name="gen-ai" />
-                                    <span>Preview AI-generated letter</span>
+                                    <span>Generate AI-powered CSV</span>
                                 </Box>
                             </Button>
                         </SpaceBetween>
@@ -166,87 +172,93 @@ export const ApprovalForm: React.FC<ApprovalFormProps> = ({
                 <SpaceBetween direction="vertical" size="l">
                     <Form>
                         <SpaceBetween direction="vertical" size="l">
-                            <FormField label="Date">
+                            <FormField label="Vendor">
                                 <Input 
-                                    value={formData.date}
-                                    onChange={e => handleInputChange('date', e.detail.value)}
+                                    value={formData.vendor}
+                                    onChange={e => handleInputChange('vendor', e.detail.value)}
                                 />
                             </FormField>
-                            <FormField label="Mail Address">
+                            <FormField label="Invoice Date">
                                 <Input 
-                                    value={formData.mailAddress}
-                                    onChange={e => handleInputChange('mailAddress', e.detail.value)}
+                                    value={formData.invoiceDate}
+                                    onChange={e => handleInputChange('invoiceDate', e.detail.value)}
+                                    type="date"
                                 />
                             </FormField>
-                            <FormField label="Application name">
+                            <FormField label="Payment Terms">
                                 <Input 
-                                    value={formData.applicationName}
-                                    onChange={e => handleInputChange('applicationName', e.detail.value)}
+                                    value={formData.paymentTerms}
+                                    onChange={e => handleInputChange('paymentTerms', e.detail.value)}
                                 />
                             </FormField>
-                            <FormField label="Property Address is same to mail address">
-                                <Checkbox
-                                    checked={formData.propertyAddressSameAsMail}
-                                    onChange={e => handleInputChange('propertyAddressSameAsMail', e.detail.checked)}
+                            <FormField label="Due Date">
+                                <Input 
+                                    value={formData.dueDate}
+                                    onChange={e => handleInputChange('dueDate', e.detail.value)}
+                                    type="date"
                                 />
                             </FormField>
-                            <FormField label="Property Address">
+                            <FormField label="Currency">
                                 <Input 
-                                    value={formData.propertyAddress}
-                                    onChange={e => handleInputChange('propertyAddress', e.detail.value)}
-                                    disabled={formData.propertyAddressSameAsMail}
+                                    value={formData.currency}
+                                    onChange={e => handleInputChange('currency', e.detail.value)}
                                 />
                             </FormField>
-
-                            <FormField label="Purchase Price">
+                            <FormField label="Invoice Total Amount">
                                 <Input 
-                                    value={formData.purchasePrice}
-                                    onChange={e => handleInputChange('purchasePrice', e.detail.value)}
+                                    value={formData.invoiceTotalAmount}
+                                    onChange={e => handleInputChange('invoiceTotalAmount', e.detail.value)}
                                     type="number"
                                 />
                             </FormField>
-                            <FormField label="Loan Amount">
-                                <Input 
-                                    value={formData.loanAmount}
-                                    onChange={e => handleInputChange('loanAmount', e.detail.value)}
-                                    type="number"
+                            <FormField label="Invoice Line Items">
+                                <Textarea 
+                                    value={formData.invoiceLineItems}
+                                    onChange={e => handleInputChange('invoiceLineItems', e.detail.value)}
+                                    placeholder="Enter line items with descriptions and amounts"
                                 />
                             </FormField>
-                            <FormField label="Terms of Loan">
-                                <Input 
-                                    value={formData.loanTerms}
-                                    onChange={e => handleInputChange('loanTerms', e.detail.value)}
-                                    readOnly
+                            <FormField label="Special Remarks">
+                                <Textarea 
+                                    value={formData.specialRemarks}
+                                    onChange={e => handleInputChange('specialRemarks', e.detail.value)}
                                 />
                             </FormField>
-
-                            <FormField 
-                                label="Conditions must be met"
-                                description="These conditions are required for loan approval"
-                            >
-                                <SpaceBetween direction="vertical" size="xs">
-                                    <Checkbox
-                                        checked={formData.satisfactoryPurchaseAgreement}
-                                        onChange={e => handleInputChange('satisfactoryPurchaseAgreement', e.detail.checked)}
-                                        controlId="satisfactoryPurchaseAgreement"
-                                    >
-                                        Satisfactory Purchase Agreement
-                                    </Checkbox>
-                                    <Checkbox
-                                        checked={formData.sufficientAppraisal}
-                                        onChange={e => handleInputChange('sufficientAppraisal', e.detail.checked)}
-                                        controlId="sufficientAppraisal"
-                                    >
-                                        Sufficient Appraisal for the Property
-                                    </Checkbox>
-                                    <Checkbox
-                                        checked={formData.marketableTitle}
-                                        onChange={e => handleInputChange('marketableTitle', e.detail.checked)}
-                                        controlId="marketableTitle"
-                                    >
-                                        Marketable Title to the Property
-                                    </Checkbox>
-                                </SpaceBetween>
+                            <FormField label="Vendor Bank Account">
+                                <Input 
+                                    value={formData.vendorBankAccount}
+                                    onChange={e => handleInputChange('vendorBankAccount', e.detail.value)}
+                                />
+                            </FormField>
+                            <FormField label="Bank Code">
+                                <Input 
+                                    value={formData.bankCode}
+                                    onChange={e => handleInputChange('bankCode', e.detail.value)}
+                                />
+                            </FormField>
+                            <FormField label="SWIFT Code">
+                                <Input 
+                                    value={formData.swiftCode}
+                                    onChange={e => handleInputChange('swiftCode', e.detail.value)}
+                                />
+                            </FormField>
+                            <FormField label="Meter Number (for utility bills)">
+                                <Input 
+                                    value={formData.meterNumber}
+                                    onChange={e => handleInputChange('meterNumber', e.detail.value)}
+                                />
+                            </FormField>
+                            <FormField label="Delta Readings (for water bills)">
+                                <Input 
+                                    value={formData.deltaReadings}
+                                    onChange={e => handleInputChange('deltaReadings', e.detail.value)}
+                                />
+                            </FormField>
+                            <FormField label="Supplier (Enriched Field)" description="This field will be populated after vendor mapping">
+                                <Input 
+                                    value={formData.supplier}
+                                    onChange={e => handleInputChange('supplier', e.detail.value)}
+                                />
                             </FormField>
                         </SpaceBetween>
                     </Form>
@@ -259,7 +271,7 @@ export const ApprovalForm: React.FC<ApprovalFormProps> = ({
             visible={showPreviewModal}
             onDismiss={() => {
                 setShowPreviewModal(false);
-                setGeneratedHtml('');
+                setGeneratedCsv('');
                 setIsGenerating(false);
                 setShowSuccessMessage(false);  
             }}
@@ -268,17 +280,17 @@ export const ApprovalForm: React.FC<ApprovalFormProps> = ({
                   variant="h2"
                   actions={
                     <Button
-                        iconName="send"
+                        iconName="download"
                         variant="primary"
                         onClick={handleSend}
                         loading={isSending}
-                        disabled={isGenerating || !generatedHtml || isSending}
+                        disabled={isGenerating || !generatedCsv || isSending}
                     >
-                        Send
+                        Download CSV
                     </Button>
                 }
             >
-                Preview Approval Letter
+                Preview Generated CSV
             </Header>
             }
             size="large"
@@ -299,14 +311,14 @@ export const ApprovalForm: React.FC<ApprovalFormProps> = ({
                             size="small"
                             variant="success"
                         />
-                        Successfully sent to application email: doefamily@gmail.com
+                        CSV file generated successfully and ready for download
                     </SpaceBetween>
                 </Box>
             )}
         </Box>
             <Box padding="l">
                 <HtmlPreview 
-                    html={generatedHtml}
+                    html={`<pre>${generatedCsv}</pre>`}
                     isLoading={isGenerating}
                 />
             </Box>

@@ -32,7 +32,7 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = ({
                         color="text-body-secondary"
                         textAlign="center"
                     >
-                        Generating approval letter...
+                        Generating CSV file...
                     </Box>
                     <LoadingBar variant="gen-ai" />
                 </LiveRegion>

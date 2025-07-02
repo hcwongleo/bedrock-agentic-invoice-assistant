@@ -189,29 +189,40 @@ def lambda_handler(event, context):
                                 }
                             })
         
-        elif args["opr"] == "generate_approval_letter":
+        elif args["opr"] == "generate_csv":
             try:
-                # Format the form data as a JSON string matching the expected input format
+                # Format the invoice data with required fields plus enriched Supplier field
                 input_data = {
-                    "applicationName": args.get("applicationName", ""),
-                    "date": args.get("date", ""),
-                    "loanAmount": args.get("loanAmount", ""),
-                    "loanTerms": args.get("loanTerms", ""),
-                    "mailAddress": args.get("mailAddress", ""),
-                    "propertyAddress": args.get("propertyAddress", ""),
-                    "propertyAddressSameAsMail": args.get("propertyAddressSameAsMail", False),
-                    "purchasePrice": args.get("purchasePrice", ""),
-                    "satisfactoryPurchaseAgreement": args.get("satisfactoryPurchaseAgreement", True),
-                    "sufficientAppraisal": args.get("sufficientAppraisal", True),
-                    "marketableTitle": args.get("marketableTitle", True)
+                    # Required invoice fields from MACAgentInstruction
+                    "vendor": args.get("vendor", ""),
+                    "invoiceDate": args.get("invoiceDate", ""),
+                    "paymentTerms": args.get("paymentTerms", ""),
+                    "dueDate": args.get("dueDate", ""),
+                    "currency": args.get("currency", ""),
+                    "invoiceTotalAmount": args.get("invoiceTotalAmount", ""),
+                    "invoiceLineItems": args.get("invoiceLineItems", []),
+                    "specialRemarks": args.get("specialRemarks", ""),
+                    "vendorBankAccount": args.get("vendorBankAccount", ""),
+                    "bankCode": args.get("bankCode", ""),
+                    "swiftCode": args.get("swiftCode", ""),
+                    "meterNumber": args.get("meterNumber", ""),
+                    "deltaReadings": args.get("deltaReadings", ""),
+                    
+                    # Enriched field after vendor mapping
+                    "supplier": args.get("supplier", ""),  # Enriched supplier information
+                    
+                    # Additional metadata
+                    "invoiceId": args.get("invoiceId", ""),
+                    "documentClass": args.get("documentClass", ""),
+                    "confidence": args.get("confidence", "")
                 }
 
                 # Format the input as expected by the agent
                 message_content = create_safe_message(input_data)
-                message_content += "Genereate pre-approval letter: "
+                message_content += "Generate production-ready CSV file with vendor mapping and enriched supplier information for SAP data input: "
                 
                 enable_trace = False
-                session_id = f"approval-letter-{datetime.now().strftime('%Y%m%d%H%M%S')}-{str(uuid.uuid4())[:8]}"
+                session_id = f"csv-generation-{datetime.now().strftime('%Y%m%d%H%M%S')}-{str(uuid.uuid4())[:8]}"
                 
                 response = bedrock_agent_runtime.invoke_agent(
                     agentId=agentId,
@@ -224,15 +235,15 @@ def lambda_handler(event, context):
                 if enable_trace:
                     print("Agent response:", response)
 
-                generated_html = ''
+                generated_csv = ''
                 event_stream = response['completion']
 
                 for event in event_stream:
                     if 'chunk' in event:
                         data = event['chunk']['bytes']
                         chunk_text = data.decode('utf8')
-                        generated_html += chunk_text  # Accumulate chunks
-                        print(f"Processing HTML chunk: {chunk_text}")
+                        generated_csv += chunk_text  # Accumulate chunks
+                        print(f"Processing CSV chunk: {chunk_text}")
                         
                     elif 'trace' in event:
                         if enable_trace:
@@ -240,16 +251,16 @@ def lambda_handler(event, context):
                     else:
                         raise Exception("unexpected event.", event)
 
-                print(f"Final HTML response:\n{generated_html}")
+                print(f"Final CSV response:\n{generated_csv}")
                 
-                return success_response(generated_html)
+                return success_response(generated_csv)
 
             except ClientError as e:
                 logger.error(f"Error calling Bedrock Agent: {e}")
-                return failure_response(f"Error generating approval letter: {str(e)}")
+                return failure_response(f"Error generating CSV: {str(e)}")
             except Exception as e:
                 logger.error(f"Unexpected error: {e}")
-                return failure_response(f"Unexpected error generating letter: {str(e)}")
+                return failure_response(f"Unexpected error generating CSV: {str(e)}")
 
     # generate a catch block
     except Exception as e:

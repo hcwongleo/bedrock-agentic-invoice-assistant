@@ -18,7 +18,7 @@ import { useS3ListItems, fetchJsonFromPath } from "../hooks/useStorage";
 import { QUERY_KEYS } from "../utils/types";
 import { BDAResult } from '../utils/config';
 import { DocPanel } from '../components/DocPanel';
-import { ApprovalForm } from "../components/ApprovalForm";
+import { ApprovalForm } from "../components/ApprovalForm"; // Note: This component now handles invoice processing
 
 
 export const Portal = () => {
@@ -31,7 +31,7 @@ export const Portal = () => {
     const [sortingDescending, setSortingDescending] = useState(false);
     const [selectedDocument, setSelectedDocument] = useState<any>(null);
     const [splitPanelOpen, setSplitPanelOpen] = useState(false);
-    const [showApprovalForm, setShowApprovalForm] = useState(false);
+    const [showInvoiceForm, setShowInvoiceForm] = useState(false);
     const [formData, setFormData] = useState<any>(null);
 
     const handleGenerateClick = () => {
@@ -49,7 +49,7 @@ export const Portal = () => {
             marketableTitle: true
         };
         setSelectedDocument(null); // Close document preview if open
-        setShowApprovalForm(true);
+        setShowInvoiceForm(true);
         setSplitPanelOpen(true);
         setFormData(initialFormData);
     };
@@ -514,7 +514,7 @@ export const Portal = () => {
                             ]}
                             items={[
                                 {
-                                    documentName: "Loan Approval Letter",
+                                    documentName: "Invoice CSV Export",
                                     brief: "-",
                                     recipient: "Applicant"
                                 }
@@ -597,9 +597,9 @@ export const Portal = () => {
                                     },
                                     {
                                         timestamp: addMinutesAndFormat(baseTime, 59), // +59 minutes
-                                        action: "Approval Letter generated",
+                                        action: "CSV Export generated",
                                         performedBy: "AI assistant",
-                                        details: "Approval letter generated"
+                                        details: "CSV export with vendor mapping generated"
                                     }
                                 ];
                             })()}
@@ -620,12 +620,12 @@ export const Portal = () => {
             }
             splitPanelOpen={splitPanelOpen}
             splitPanel={
-                showApprovalForm ? (
+                showInvoiceForm ? (
                     <ApprovalForm 
                         initialData={formData}
                         onPreview={handlePreview}
                         onCancel={() => {
-                            setShowApprovalForm(false);
+                            setShowInvoiceForm(false);
                             setSplitPanelOpen(false);
                         }
                       }
@@ -647,7 +647,7 @@ export const Portal = () => {
             onSplitPanelToggle={({ detail }) => {
                 setSplitPanelOpen(detail.open);
                 if (!detail.open) {
-                    setShowApprovalForm(false);
+                    setShowInvoiceForm(false);
                 }
             }}
             navigationOpen={false}

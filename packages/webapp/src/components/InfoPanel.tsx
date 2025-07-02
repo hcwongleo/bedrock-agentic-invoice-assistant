@@ -71,7 +71,7 @@ export const InfoPanel = () => {
         {
             title: "Broker Assistant",
             image: brokerAssistant,
-            description: "Intelligent broker assistant leveraging Amazon Bedrock for automated document analysis, validation, and generation of approval letters, streamlining the loan processing workflow."
+            description: "Intelligent invoice processing assistant leveraging Amazon Bedrock for automated document analysis, field extraction, vendor identification, and generation of production-ready CSV files for SAP integration."
         }
     ];
 
