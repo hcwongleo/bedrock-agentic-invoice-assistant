@@ -18,7 +18,7 @@ import { useS3ListItems, fetchJsonFromPath } from "../hooks/useStorage";
 import { QUERY_KEYS } from "../utils/types";
 import { BDAResult } from '../utils/config';
 import { DocPanel } from '../components/DocPanel';
-import { ApprovalForm } from "../components/ApprovalForm"; // Note: This component now handles invoice processing
+import { InvoiceForm } from "../components/ApprovalForm"; // Note: This component now handles invoice processing
 
 
 export const Portal = () => {
@@ -33,20 +33,27 @@ export const Portal = () => {
     const [splitPanelOpen, setSplitPanelOpen] = useState(false);
     const [showInvoiceForm, setShowInvoiceForm] = useState(false);
     const [formData, setFormData] = useState<any>(null);
+    const [extractedData, setExtractedData] = useState<any>(null);
 
     const handleGenerateClick = () => {
         const initialFormData = {
-            date: new Date().toISOString().split('T')[0],
-            applicationName: applicationData.applicant_details.primary_borrower.name,
-            mailAddress: applicationData.applicant_details.address,
-            propertyAddress: applicationData.property_details?.address || applicationData.property_details?.property_address,
-            purchasePrice: applicationData.property_details.purchase_price?.toString() || '',
-            loanAmount: applicationData.property_details.mortgage_amount.toString(),
-            loanTerms: `${applicationData.property_details.loan_term}-year conventional`,
-            propertyAddressSameAsMail: false,
-            satisfactoryPurchaseAgreement: true,
-            sufficientAppraisal: true,
-            marketableTitle: true
+            vendor: extractedData?.vendor || '',
+            invoiceDate: extractedData?.invoiceDate || new Date().toISOString().split('T')[0],
+            paymentTerms: extractedData?.paymentTerms || 'Net 30',
+            dueDate: extractedData?.dueDate || '',
+            currency: extractedData?.currency || 'USD',
+            invoiceTotalAmount: extractedData?.invoiceTotalAmount || '',
+            invoiceLineItems: extractedData?.invoiceLineItems ? JSON.stringify(extractedData.invoiceLineItems, null, 2) : '',
+            specialRemarks: extractedData?.specialRemarks || '',
+            vendorBankAccount: extractedData?.vendorBankAccount || '',
+            bankCode: extractedData?.bankCode || '',
+            swiftCode: extractedData?.swiftCode || '',
+            meterNumber: extractedData?.meterNumber || '',
+            deltaReadings: extractedData?.deltaReadings || '',
+            supplier: '', // Enriched field to be filled after vendor mapping
+            invoiceId: extractedData?.invoiceId || `INV-${Date.now().toString().slice(-6)}`,
+            documentClass: 'invoice',
+            confidence: extractedData?.confidence || '0.95'
         };
         setSelectedDocument(null); // Close document preview if open
         setShowInvoiceForm(true);
@@ -125,6 +132,33 @@ export const Portal = () => {
                     const bdaResult = await findMatchingBdaFile(item.itemName);
                     if (bdaResult) {
                         results[item.itemName] = bdaResult;
+                        
+                        // Extract invoice data from BDA results
+                        if (bdaResult.document_class === 'invoice' || 
+                            bdaResult.matched_blueprint?.name?.toLowerCase().includes('invoice')) {
+                            
+                            const extractedInvoiceData = {
+                                vendor: bdaResult.inference_result?.vendor || '',
+                                invoiceDate: bdaResult.inference_result?.invoice_date || '',
+                                paymentTerms: bdaResult.inference_result?.payment_terms || '',
+                                dueDate: bdaResult.inference_result?.due_date || '',
+                                currency: bdaResult.inference_result?.currency || '',
+                                invoiceTotalAmount: bdaResult.inference_result?.total_amount || '',
+                                invoiceLineItems: bdaResult.inference_result?.line_items || [],
+                                specialRemarks: bdaResult.inference_result?.special_remarks || '',
+                                vendorBankAccount: bdaResult.inference_result?.vendor_bank_account || '',
+                                bankCode: bdaResult.inference_result?.bank_code || '',
+                                swiftCode: bdaResult.inference_result?.swift_code || '',
+                                meterNumber: bdaResult.inference_result?.meter_number || '',
+                                deltaReadings: bdaResult.inference_result?.delta_readings || '',
+                                invoiceId: bdaResult.inference_result?.invoice_id || '',
+                                documentClass: bdaResult.document_class || 'invoice',
+                                confidence: bdaResult.confidence || ''
+                            };
+                            
+                            setExtractedData(extractedInvoiceData);
+                            console.log('Extracted invoice data:', extractedInvoiceData);
+                        }
                     }
                 }));
                 
@@ -621,7 +655,7 @@ export const Portal = () => {
             splitPanelOpen={splitPanelOpen}
             splitPanel={
                 showInvoiceForm ? (
-                    <ApprovalForm 
+                    <InvoiceForm 
                         initialData={formData}
                         onPreview={handlePreview}
                         onCancel={() => {

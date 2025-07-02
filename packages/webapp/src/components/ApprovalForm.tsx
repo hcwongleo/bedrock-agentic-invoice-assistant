@@ -50,7 +50,7 @@ interface FormData {
     confidence: string;
 }
 
-export const ApprovalForm: React.FC<InvoiceFormProps> = ({ 
+export const InvoiceForm: React.FC<InvoiceFormProps> = ({ 
     initialData,
     onCancel 
 }) => {
