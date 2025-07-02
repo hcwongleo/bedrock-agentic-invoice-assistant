@@ -24,7 +24,7 @@ import { InvoiceForm } from "../components/ApprovalForm"; // Note: This componen
 export const Portal = () => {
     const { data: documentItems, isLoading: documentsLoading } = useS3ListItems(QUERY_KEYS.DOCUMENTS);
     const { applicationId } = useParams();
-    const [applicationData, setApplicationData] = useState<any>(null);
+    const [invoiceData, setInvoiceData] = useState<any>(null);
     const [documentResults, setDocumentResults] = useState<Record<string, BDAResult>>({});
     const [loadingResults, setLoadingResults] = useState(true);
     const [sortingColumn, setSortingColumn] = useState({ sortingField: "timestamp" });
@@ -178,7 +178,7 @@ export const Portal = () => {
         const fetchApplication = async () => {
             try {
                 const data = await fetchJsonFromPath(`applications/${applicationId}.json`);
-                setApplicationData(data);
+                setInvoiceData(data);
             } catch (error) {
                 console.error('Error fetching application:', error);
             }
@@ -186,11 +186,7 @@ export const Portal = () => {
         fetchApplication();
     }, [applicationId]);
 
-    if (!applicationData) return null;
-
-    const getMaritalStatus = (data: any) => {
-        return data?.applicant_details?.co_borrower?.name ? 'Married' : 'Single';
-    };
+    if (!invoiceData) return null;
 
     const getVerificationStatus = (bdaResult: BDAResult | undefined): {
         status: string;
@@ -337,33 +333,25 @@ export const Portal = () => {
                                 </Box>
                             </div>
                             <div>
-                                <Box variant="awsui-key-label">DTI ratio</Box>
+                                <Box variant="awsui-key-label">Invoice ID</Box>
                                 <Box variant="p">
-                                    {applicationData?.debt_to_income ? (
-                                        <>
-                                            {applicationData.debt_to_income}%
-                                            <Button 
-                                                variant="inline-icon" 
-                                                iconName={Number(applicationData.debt_to_income) >= 43 ? "face-sad" : "face-happy"}
-                                                ariaLabel={`DTI ratio ${applicationData.debt_to_income}% is ${Number(applicationData.debt_to_income) >= 43 ? 'above' : 'below'} 43%`}
-                                            />
-                                        </>
+                                    {extractedData?.invoiceId || `INV-${Date.now().toString().slice(-6)}`}
                                     ) : (
                                         '-'
                                     )}
                                 </Box>
                             </div>
                             <div>
-                                <Box variant="awsui-key-label">Down payment</Box>
+                                <Box variant="awsui-key-label">Bank code</Box>
                                 <Box variant="p">
-                                    ${applicationData?.property_details?.down_payment?.toLocaleString() || '-'}
+                                    {extractedData?.bankCode || '-'}
                                 </Box>
                             </div>
 
                             <div>
-                                <Box variant="awsui-key-label">Payment Terms</Box>
+                                <Box variant="awsui-key-label">SWIFT code</Box>
                                 <Box variant="p">
-                                    Net 30
+                                    {extractedData?.swiftCode || '-'}
                                 </Box>
                             </div>
                             <div>
@@ -373,17 +361,17 @@ export const Portal = () => {
                                 </Box>
                             </div>
                             <div>
-                                <Box variant="awsui-key-label">Co-applicant included</Box>
+                                <Box variant="awsui-key-label">Document class</Box>
                                 <Box variant="p">
                                     <StatusIndicator type="success">
-                                        Yes
+                                        {extractedData?.documentClass || 'Invoice'}
                                     </StatusIndicator>
                                 </Box>
                             </div>
                             <div>
-                                <Box variant="awsui-key-label">Down payment percentage</Box>
+                                <Box variant="awsui-key-label">Meter number</Box>
                                 <Box variant="p">
-                                    {100 - (applicationData?.property_details?.financing_percentage || 0)}%
+                                    {extractedData?.meterNumber || '-'}
                                 </Box>
                             </div>
                         </ColumnLayout>
@@ -511,7 +499,7 @@ export const Portal = () => {
                                     header: "AI-Generated Summary",
                                     cell: item => (
                                         <Box variant="p">
-                                            {applicationData?.summary?.analysis || '-'}
+                                            {extractedData?.specialRemarks || '-'}
                                         </Box>
                                     ),
                                     minWidth: 400
@@ -593,7 +581,7 @@ export const Portal = () => {
                             ]}
                             items={(() => {
                                 // Get base timestamp from application data
-                                const baseTime = new Date(applicationData.timestamp);
+                                const baseTime = new Date(invoiceData.timestamp || new Date());
                                 
                                 // Helper function to add minutes and format
                                 const addMinutesAndFormat = (date: Date, minutes: number) => {
