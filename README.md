@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository provides an automated loan application processing system that streamlines document submission, verification, underwriting and approval processes. The solution helps financial institutions reduce manual processing time, minimize errors, and provide better customer experience through AI-powered document processing and validation.
+This repository provides an automated invoice processing system that streamlines invoice processing, vendor identification. The solution helps reduce manual processing time, minimize errors, and provide better experience through AI-powered document processing and validation.
 
 ## Table of Contents
 
@@ -24,9 +24,8 @@ This repository provides an automated loan application processing system that st
 - Intelligent document upload and processing (PDF/Images)
 - Automated data extraction from key documents
 - Real-time document validation and verification
-- Automated loan application form completion
-- DTI calculation and pre-approval letter generation
-- Interactive chatbot for loan process assistance
+- Vendor Identification and SAP data input form generation
+- Interactive chatbot for invoice processing assistance
 
 ## Architecture
 
@@ -36,10 +35,10 @@ This repository provides an automated loan application processing system that st
 
 The system creates and manages:
 - Bedrock data automation blueprints for data extraction
-- Bedrock multi-agents for document verification, DTI calculation
+- Bedrock multi-agents for document verification, vendor identification
 - Secure document storage system
 - Application form auto-completion
-- Pre-approval letter generation
+- SAP data input form generation
 - Chatbot integration for applicant
 
 ## Demo Script
@@ -68,7 +67,7 @@ aws configure set region YOUR_REGION
 1. Clone this repository
 2. Install npm modules
 ```bash
-cd auto-loan-application
+cd auto-invoice-application
 npm run install-packages
 ```
 3. Deploy the backend and frontend
@@ -85,7 +84,7 @@ npm run deploy-frontend
 ```
 4. Access to the application from [Cloudfront distribution URL](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/GettingStarted.SimpleDistribution.html), you can get this URL from the Cloudformation output with script:
 ```bash
-aws cloudformation describe-stacks --stack-name $(aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE | jq -r '.StackSummaries[] | select(.StackName | startswith("AutoLoanAPPwebsitewafstack")) | .StackName') --query 'Stacks[0].Outputs[?OutputKey==`configwebsitedistributiondomain`].OutputValue' --output text
+aws cloudformation describe-stacks --stack-name $(aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE | jq -r '.StackSummaries[] | select(.StackName | startswith("AutoInvoiceAPPwebsitewafstack")) | .StackName') --query 'Stacks[0].Outputs[?OutputKey==`configwebsitedistributiondomain`].OutputValue' --output text
 ```
 5. [Create cognito user](https://docs.aws.amazon.com/cognito/latest/developerguide/how-to-create-user-accounts.html#creating-a-new-user-using-the-console) in the user pool to access the application
 6. Delete the stack. We recommend using the AWS CloudFormation service page to delete/manage your CDK stacks as it offers many options to monitor stack drifts, identify errors, and provides better stability. 
@@ -101,7 +100,7 @@ Note:
   - Any remaining S3 buckets and their contents
 
 ## Cost Estimation
-- Approximate cost: The Auto Loan Application will cost $226 per month for 1,000 pages, 28,800 requests (us-east-1 region, April 2025)
+- Approximate cost: The Auto Invoice Application will cost $226 per month for 1,000 pages, 28,800 requests (us-east-1 region, April 2025)
 - Recommend setting up [AWS Budget](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html)
 
 ### Cost Breakdown

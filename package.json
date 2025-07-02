@@ -1,8 +1,8 @@
 {
-  "name": "auto-loan-application",
+  "name": "auto-invoice-application",
   "version": "1.0.0",
   "type": "module",
-  "description": "Automate loan application",
+  "description": "Automate invoice application",
   "workspaces": [
     "packages/*"
   ],
