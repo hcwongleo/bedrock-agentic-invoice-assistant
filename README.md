@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository provides an automated invoice processing system that streamlines invoice processing, vendor identification. The solution helps reduce manual processing time, minimize errors, and provide better experience through AI-powered document processing and validation.
+This repository provides an automated document processing system that streamlines invoice processing through a simple file upload interface. The solution helps reduce manual processing time, minimize errors, and provides real-time processing status through AI-powered document processing using Amazon Bedrock Data Automation.
 
 ## Table of Contents
 
@@ -11,7 +11,7 @@ This repository provides an automated invoice processing system that streamlines
 - [Architecture](#architecture)
   - [Architecture Diagram](#architecture-diagram)
   - [Provisioned Resources](#provisioned-resources)
-- [Demo Script](#demo-script)
+- [User Interface](#user-interface)
 - [Deployment Steps](#deployment-steps)
   - [Prerequisites](#prerequisites)
   - [Quick Start](#quick-start)
@@ -21,11 +21,12 @@ This repository provides an automated invoice processing system that streamlines
 
 ## Key Features
 
-- Intelligent document upload and processing (PDF/Images)
-- Automated data extraction from key documents
-- Real-time document validation and verification
-- Vendor Identification and SAP data input form generation
-- Interactive chatbot for invoice processing assistance
+- **Simple File Upload Interface**: Drag-and-drop or click-to-browse file upload for PDF and image documents
+- **Real-time Processing Status**: Monitor document processing status with live updates
+- **Automated Data Extraction**: Leverages Amazon Bedrock Data Automation for intelligent document processing
+- **Results Visualization**: View detailed extraction results in an interactive JSON viewer
+- **Secure Document Storage**: Secure S3-based document storage with proper access controls
+- **Multi-format Support**: Supports PDF, PNG, JPG, JPEG, and GIF file formats
 
 ## Architecture
 
@@ -34,16 +35,36 @@ This repository provides an automated invoice processing system that streamlines
 ### Provisioned Resources
 
 The system creates and manages:
-- Bedrock data automation blueprints for data extraction
-- Bedrock multi-agents for document verification, vendor identification
-- Secure document storage system
-- Application form auto-completion
-- SAP data input form generation
-- Chatbot integration for applicant
+- **Amazon Bedrock Data Automation**: Automated document processing and data extraction
+- **AWS Lambda Functions**: Event-driven processing triggered by S3 uploads
+- **Amazon S3**: Secure document storage for uploads and processed results
+- **Amazon EventBridge**: Event routing for processing workflow coordination
+- **Amazon CloudFront**: Content delivery for the web application
+- **Amazon Cognito**: User authentication and access control
 
-## Demo Script
+## User Interface
 
-The demo script, use case, and persona is provided here: [Demo Script](/docs/demoscript/demo-script.md)
+The application features a streamlined interface with two main sections:
+
+### Document Upload
+- **Drag & Drop Area**: Simply drag files into the upload zone
+- **File Browser**: Click to browse and select files from your computer
+- **File Validation**: Automatic validation for file type and size limits
+- **Upload Progress**: Real-time upload progress indicators
+
+### Processing Status
+- **Overview Tab**: Summary statistics of uploaded and processed documents
+- **File List Tab**: Detailed view of each uploaded file with processing status
+- **Status Indicators**: 
+  - 🟡 **Processing**: Document is being analyzed by Bedrock Data Automation
+  - 🟢 **Completed**: Processing finished, results available
+  - 🔴 **Error**: Processing failed (with error details)
+
+### Results Viewer
+- **Interactive Modal**: Click "View Results" to see detailed extraction data
+- **JSON Viewer**: Formatted display of extracted document data
+- **Blueprint Information**: Shows which processing blueprint was matched
+- **Document Classification**: Displays the identified document type
 
 ## Deployment Steps
 

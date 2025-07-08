@@ -22,20 +22,16 @@ export const InfoPanel = () => {
             description: "Leverages Amazon Bedrock Data Automation to automatically extract key information from invoices and other financial documents."
         },
         {
-            title: "✅ Real-time Validation",
-            description: "Provides real-time document validation and verification to ensure data accuracy and completeness before processing."
+            title: "✅ Real-time Processing Status",
+            description: "Provides real-time processing status updates and monitoring as documents are processed through the BDA pipeline."
         },
         {
             title: "🏢 Vendor Identification",
             description: "Advanced vendor identification system that automatically recognizes and categorizes suppliers from invoice documents."
         },
         {
-            title: "📋 SAP Integration",
-            description: "Generates SAP data input forms automatically, streamlining the integration process with existing enterprise systems."
-        },
-        {
-            title: "💬 Interactive Assistant",
-            description: "Built-in chatbot provides interactive assistance for invoice processing, helping users navigate through the system efficiently."
+            title: "📋 Results Visualization",
+            description: "Interactive interface to view and analyze extracted data with detailed JSON results and processing insights."
         },
         {
             title: "🔒 Secure Storage",
@@ -94,16 +90,16 @@ export const InfoPanel = () => {
                     </ul>
                 </TextContent>
             }
-            header={<h2>Invoice Processing Assistant</h2>}
+            header={<h2>Document Processing Assistant</h2>}
         >
             <TextContent>
                 <SpaceBetween size="l">
                     <Box>
                         <h3>🎯 Solution Overview</h3>
                         <Box variant="p" color="text-body-secondary">
-                            This automated invoice processing system streamlines invoice processing and vendor identification, 
-                            helping reduce manual processing time, minimize errors, and provide better user experience through 
-                            AI-powered document processing and validation.
+                            This automated document processing system provides a streamlined interface for uploading invoice documents 
+                            and viewing AI-powered extraction results. Upload your PDFs or images, monitor real-time processing status, 
+                            and access detailed extraction results through Amazon Bedrock Data Automation.
                         </Box>
                     </Box>
 
@@ -146,22 +142,19 @@ export const InfoPanel = () => {
                     <Container header={<Header variant="h3">🚀 Getting Started</Header>}>
                         <SpaceBetween size="s">
                             <Box variant="p">
-                                <strong>1. Upload Documents:</strong> Click the upload button (📤) in the chat interface to upload your invoice PDFs or images
+                                <strong>1. Upload Documents:</strong> Drag and drop your invoice PDFs or images into the upload area, or click to browse files
                             </Box>
                             <Box variant="p">
-                                <strong>2. Select Documents:</strong> Choose the uploaded documents you want to process from the document gallery
+                                <strong>2. Monitor Processing:</strong> Watch the real-time processing status as Amazon Bedrock Data Automation extracts data
                             </Box>
                             <Box variant="p">
-                                <strong>3. AI Processing:</strong> Let Amazon Bedrock extract and validate data automatically from your selected documents
+                                <strong>3. View Results:</strong> Click "View Results" when processing completes to see extracted invoice data
                             </Box>
                             <Box variant="p">
-                                <strong>4. Review Results:</strong> Verify extracted information and vendor details in the review dashboard
+                                <strong>4. Review Dashboard:</strong> Use the Review section to verify and manage all processed documents
                             </Box>
                             <Box variant="p">
-                                <strong>5. Generate Output:</strong> Create SAP-ready data input forms from the processed invoice data
-                            </Box>
-                            <Box variant="p">
-                                <strong>6. Chat Assistant:</strong> Use the interactive chatbot for guidance and support throughout the process
+                                <strong>5. Export Data:</strong> Generate reports and export processed data for integration with your systems
                             </Box>
                         </SpaceBetween>
                     </Container>

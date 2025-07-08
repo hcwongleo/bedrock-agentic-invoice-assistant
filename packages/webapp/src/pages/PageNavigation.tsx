@@ -1,14 +1,14 @@
 import { SideNavigation } from "@cloudscape-design/components";
 import { useLocation, useNavigate, Routes, Route, } from "react-router-dom";
-import { Chat } from "./Chat";
+import { FileProcessor } from "./FileProcessor";
 import { appName } from "../atoms/AppAtoms";
 import { Review } from "./Review";
 import { InfoPanel } from "../components/InfoPanel";
 import { Portal } from "./Portal";
 
 export const AppRoutes = {
-    chat: {
-        text: "Invoice Processing",
+    fileProcessor: {
+        text: "Document Processor",
         href: "/",
     },
     review: {
@@ -36,7 +36,7 @@ export const AppSideNavigation = () => {
                 }
             }}
             items={[
-                { type: "link", text: AppRoutes.chat.text, href: AppRoutes.chat.href },
+                { type: "link", text: AppRoutes.fileProcessor.text, href: AppRoutes.fileProcessor.href },
                 {
                     type: "section",
                     text: "Additional Features",
@@ -62,7 +62,7 @@ export const AppSideNavigation = () => {
 export const PageContent = () => {
     return (
         <Routes>
-            <Route path={AppRoutes.chat.href} element={<Chat />} />
+            <Route path={AppRoutes.fileProcessor.href} element={<FileProcessor />} />
             <Route path={AppRoutes.review.href} element={<Review />} />
             <Route path="/portal/:applicationId" element={<Portal />} />
         </Routes>

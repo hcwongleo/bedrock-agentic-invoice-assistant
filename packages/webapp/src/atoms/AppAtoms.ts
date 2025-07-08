@@ -5,7 +5,7 @@ import { FetchUserAttributesOutput } from 'aws-amplify/auth';
 import { AuthedUserType } from "../utils/types";
 
 
-export const appName = "Auto Invoice App"
+export const appName = "Document Processor"
 // Theme atom
 export const themeAtom = atomWithStorage<Mode>('theme', Mode.Light);
 
