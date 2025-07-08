@@ -31,10 +31,15 @@ def handler(event, context):
         }
 
 def get_project_arn(project_name):
-    projects = bda.list_data_automation_projects()['projects']
-    for project in projects:
-        if project['projectName'] == project_name:
-            return project['projectArn']
+    try:
+        projects = bda.list_data_automation_projects()['projects']
+        for project in projects:
+            if project['projectName'] == project_name:
+                return project['projectArn']
+        return None
+    except Exception as e:
+        logger.error(f'Error getting project ARN: {str(e)}')
+        return None
 
 def handle_create(properties):
     # Implement your Bedrock data automation creation logic here
@@ -57,9 +62,21 @@ def handle_create(properties):
         **params
     )
     logger.info('Created project: %s', response)
-    while bda.get_data_automation_project(projectArn=response['projectArn'])['project']['status'] != 'COMPLETED': 
-        logger.info('Project status: %s', bda.get_data_automation_project(projectArn=response['projectArn'])['project']['status'])
-        pass
+    
+    # Wait for project to be ready
+    project_arn = response['projectArn']
+    while True:
+        try:
+            project_status = bda.get_data_automation_project(projectArn=project_arn)['project']['status']
+            logger.info('Project status: %s', project_status)
+            if project_status == 'COMPLETED':
+                break
+            elif project_status == 'FAILED':
+                raise Exception(f'Project creation failed with status: {project_status}')
+        except Exception as e:
+            logger.error(f'Error checking project status: {str(e)}')
+            break
+    
     logger.info('Project created successfully!')
     return {
         'ProjectArn': response['projectArn']
@@ -67,8 +84,12 @@ def handle_create(properties):
 
 def handle_update(properties):
     # Implement your update logic here
+    project_arn = get_project_arn(properties.get('projectName'))
+    if not project_arn:
+        raise Exception(f"Project {properties.get('projectName')} not found")
+        
     required_params = {
-        'projectArn':  get_project_arn(properties.get('projectName')),
+        'projectArn': project_arn,
         'standardOutputConfiguration': properties.get('standardOutputConfiguration')
     }
     optional_params = {
@@ -91,13 +112,18 @@ def handle_update(properties):
 
 def handle_delete(properties):
     # Implement your cleanup logic here
-    params = {
-        'projectArn':  get_project_arn(properties.get('projectName'))
-    }
+    project_arn = get_project_arn(properties.get('projectName'))
+    if not project_arn:
+        logger.info('Project not found, considering delete successful')
+        return
 
     try:
         bda.delete_data_automation_project(
-            **params
+            projectArn=project_arn
         )
+        logger.info('Project deleted successfully')
     except bda.exceptions.ResourceNotFoundException:
         logger.info('Data source already deleted')
+    except Exception as e:
+        logger.error(f'Error deleting project: {str(e)}')
+        # Don't fail the delete operation

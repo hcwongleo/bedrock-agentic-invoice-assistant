@@ -1,13 +1,13 @@
-import { Stack, StackProps, Aspects, Duration, aws_events_targets as targets, aws_events as events, CustomResource } from "aws-cdk-lib";
+import { Stack, StackProps, Aspects, Duration, aws_events_targets as targets, aws_events as events, 
+    aws_s3_deployment as s3deploy } from "aws-cdk-lib";
 import { Bucket } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
-import { DataAutomationBlueprint, DataAutomationProject } from "../constructs/bda-construct";
+import { DataAutomationProject } from "../constructs/bda-construct";
 import { AwsSolutionsChecks } from 'cdk-nag';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as fs from 'fs';
 import * as BDAConfig from '../config/BDAConfig';
-import * as custom from 'aws-cdk-lib/custom-resources';
 
 interface BDAStackProps extends StackProps {
     fileBucket: Bucket;
@@ -23,77 +23,79 @@ export class BDAStack extends Stack {
 
         Aspects.of(this).add(new AwsSolutionsChecks());
 
-        const blueprint_comprehensive_invoice = new DataAutomationBlueprint(this, "BDA-blueprint-comprehensive-invoice", {
-            blueprintName: `ComprehensiveInvoice-Custom`,
-            type: 'DOCUMENT',
-            schema: BDAConfig.customBlueprint.ComprehensiveInvoice,
+        // Create BDA project with standard invoice blueprint
+        const project = new DataAutomationProject(this, "BDA-project", {
+            projectName: `InvoiceApp`,
+            standardOutputConfiguration: BDAConfig.standardOutputConfiguration,
+            customOutputConfiguration: {
+                'blueprints': [
+                    {
+                        'blueprintArn': BDAConfig.sampleBlueprints["Invoice"]
+                    }
+                ]
+            },
         });
 
-        // Use the existing LoanApp project instead of creating a new one
-        const projectArn = "arn:aws:bedrock:us-east-1:761018861641:data-automation-project/172f4a3b1db8";
-        
-        // Create a custom resource to represent the existing project
-        const projectCustomResource = new CustomResource(this, "BDA-project", {
-            serviceToken: new custom.Provider(this, "ProjectArnProvider", {
-                onEventHandler: new lambda.Function(this, "ProjectArnProviderHandler", {
-                    runtime: lambda.Runtime.NODEJS_18_X,
-                    handler: "index.handler",
-                    code: lambda.Code.fromInline(`
-                        exports.handler = async (event) => {
-                            return {
-                                PhysicalResourceId: event.LogicalResourceId,
-                                Data: {
-                                    ProjectArn: "${projectArn}"
-                                }
-                            };
-                        };
-                    `)
-                })
-            }).serviceToken,
-            properties: {
-                ProjectArn: projectArn
-            }
-        });
-        
-        const project = {
-            projectARN: projectArn,
-            node: {
-                addDependency: (construct: any) => {}
-            }
-        };
-        
-        project.node.addDependency(blueprint_comprehensive_invoice);
-  
         if (this.fileBucket && !this.fileBucket.encryptionKey) {
             throw new Error('Bucket encryption key is required');
         }
         
-          // Create EventBridge rules for specific prefixes
-          const invokeDataAutomationLambdaFunction = this.createInvokeDataAutomationFunction({
+        // Create EventBridge rules for specific prefixes
+        const invokeDataAutomationLambdaFunction = this.createInvokeDataAutomationFunction({
             targetBucketName: this.fileBucket.bucketName,
             accountId: this.account,
+            dataProjectArn: project.projectARN,
             targetBucketKey: this.fileBucket.encryptionKey!.keyArn
-          });
+        });
       
-          
-          const rule = new events.Rule(this, 'DocumentsRule', {
+        const rule = new events.Rule(this, 'DocumentsRule', {
             eventPattern: {
-              source: ['aws.s3'],
-              detailType: ['Object Created'],
-              detail: {
-                bucket: { name: [this.fileBucket.bucketName] },
-                object: { key: [{ prefix: 'datasets' }] },
-              },
+                source: ['aws.s3'],
+                detailType: ['Object Created'],
+                detail: {
+                    bucket: { name: [this.fileBucket.bucketName] },
+                    object: { key: [{ prefix: 'datasets' }] },
+                },
             },
-          });
-          rule.addTarget(new targets.LambdaFunction(invokeDataAutomationLambdaFunction));
+        });
+        rule.addTarget(new targets.LambdaFunction(invokeDataAutomationLambdaFunction));
+        
+        const documentsDeployment = new s3deploy.BucketDeployment(this, `DeployDocuments`, {
+            sources: [s3deploy.Source.asset('./lambda/python/bda-load-lambda/documents.zip')],
+            destinationBucket: this.fileBucket,
+            destinationKeyPrefix: 'datasets/documents',
+        });
+        
+        const applicationsDeployment = new s3deploy.BucketDeployment(this, `DeployApplications`, {
+            sources: [s3deploy.Source.asset('./lambda/python/bda-load-lambda/sample-applications.zip')],
+            destinationBucket: this.fileBucket,
+            destinationKeyPrefix: 'applications',
+        });
+        
+        const bdaResultRawDeployment = new s3deploy.BucketDeployment(this, `DeployBdaResultRaw`, {
+            sources: [s3deploy.Source.asset('./lambda/python/bda-load-lambda/bda-result-raw.zip')],
+            destinationBucket: this.fileBucket,
+            destinationKeyPrefix: 'bda-result-raw',
+        });
+        
+        const bdaResultDeployment = new s3deploy.BucketDeployment(this, `DeployBdaResult`, {
+            sources: [s3deploy.Source.asset('./lambda/python/bda-load-lambda/bda-result.zip')],
+            destinationBucket: this.fileBucket,
+            destinationKeyPrefix: 'bda-result',
+        });
+        
+        documentsDeployment.node.addDependency(rule, invokeDataAutomationLambdaFunction);
+        applicationsDeployment.node.addDependency(rule, invokeDataAutomationLambdaFunction);
+        bdaResultRawDeployment.node.addDependency(rule, invokeDataAutomationLambdaFunction);
+        bdaResultDeployment.node.addDependency(rule, invokeDataAutomationLambdaFunction);
     }
   
     private createInvokeDataAutomationFunction(params: {
         targetBucketName: string;
         accountId: string;
+        dataProjectArn?: string;
         targetBucketKey?: string;
-      }): lambda.Function {
+    }): lambda.Function {
   
         const layer_boto3 = new lambda.LayerVersion(this, 'LatestBoto3Layer', {
             code: lambda.Code.fromAsset('.', {
@@ -123,8 +125,9 @@ export class BDAStack extends Stack {
             environment: {
               TARGET_BUCKET_NAME: params.targetBucketName,
               ACCOUNT_ID: this.account,
-              // Hardcode the DATA_PROJECT_ARN to use the existing LoanApp project
-              DATA_PROJECT_ARN: "arn:aws:bedrock:us-east-1:761018861641:data-automation-project/172f4a3b1db8",
+              ...(params.dataProjectArn && {
+                DATA_PROJECT_ARN: params.dataProjectArn,
+              }),
             },
           }
         );
@@ -136,7 +139,7 @@ export class BDAStack extends Stack {
           })
         );
   
-          lendingDocumentAutomationLambdaFunction.addToRolePolicy(
+        lendingDocumentAutomationLambdaFunction.addToRolePolicy(
             new iam.PolicyStatement({
                 actions: [
                   'bedrock:InvokeDataAutomationAsync',
@@ -144,9 +147,9 @@ export class BDAStack extends Stack {
                 ],
                 resources: ['*'],
               })
-          );
+        );
   
-          lendingDocumentAutomationLambdaFunction.addToRolePolicy(
+        lendingDocumentAutomationLambdaFunction.addToRolePolicy(
             new iam.PolicyStatement({
                 actions: [
                   's3:GetObject',
@@ -158,9 +161,9 @@ export class BDAStack extends Stack {
                     `arn:aws:s3:::${params.targetBucketName}`
                 ],
               })
-          );
+        );
   
-          lendingDocumentAutomationLambdaFunction.addToRolePolicy(
+        lendingDocumentAutomationLambdaFunction.addToRolePolicy(
             new iam.PolicyStatement({
                 actions: [
                     'kms:Decrypt',
@@ -169,7 +172,7 @@ export class BDAStack extends Stack {
                 ],
                 resources: [`${params.targetBucketKey}`],
               })
-          );
+        );
     
         return lendingDocumentAutomationLambdaFunction;
     }

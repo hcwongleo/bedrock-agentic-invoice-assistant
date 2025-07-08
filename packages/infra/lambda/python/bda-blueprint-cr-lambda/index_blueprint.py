@@ -11,12 +11,16 @@ bda = boto3.client('bedrock-data-automation')
 
 
 def get_blueprint_arn(blueprint_name):
-    paginator = bda.get_paginator('list_blueprints')
-    for page in paginator.paginate():
-        for blueprint in page['blueprints']:
-            if blueprint['blueprintName'] == blueprint_name:
-                return blueprint['blueprintArn']
-    return None
+    try:
+        paginator = bda.get_paginator('list_blueprints')
+        for page in paginator.paginate():
+            for blueprint in page['blueprints']:
+                if blueprint['blueprintName'] == blueprint_name:
+                    return blueprint['blueprintArn']
+        return None
+    except Exception as e:
+        logger.error(f'Error getting blueprint ARN: {str(e)}')
+        return None
         
 
 def handler(event, context):
@@ -86,13 +90,20 @@ def handle_create(properties):
         
         if existing_blueprint_arn:
             logger.info(f"Blueprint {blueprint_name} already exists. Returning existing blueprint information.")
-            existing_blueprint = bda.get_blueprint(blueprintArn=existing_blueprint_arn)['blueprint']
-            return {
-                'BlueprintArn': existing_blueprint_arn,
-                'Status': existing_blueprint.get('status'),
-                'CreationTime': str(existing_blueprint.get('creationTime')),
-                'Message': 'Existing blueprint returned'
-            }
+            try:
+                existing_blueprint = bda.get_blueprint(blueprintArn=existing_blueprint_arn)['blueprint']
+                return {
+                    'BlueprintArn': existing_blueprint_arn,
+                    'Status': existing_blueprint.get('status'),
+                    'CreationTime': str(existing_blueprint.get('creationTime')),
+                    'Message': 'Existing blueprint returned'
+                }
+            except Exception as e:
+                logger.warning(f"Could not get existing blueprint details: {str(e)}")
+                return {
+                    'BlueprintArn': existing_blueprint_arn,
+                    'Message': 'Existing blueprint returned (details unavailable)'
+                }
 
         required_params = {
             'blueprintName': blueprint_name,
@@ -197,4 +208,5 @@ def handle_delete(properties):
         return {'Status': 'AlreadyDeleted'}
     except Exception as e:
         logger.error(f"Blueprint deletion failed: {str(e)}")
-        raise
+        # Don't fail the delete operation
+        return {'Status': 'DeleteFailed', 'Error': str(e)}

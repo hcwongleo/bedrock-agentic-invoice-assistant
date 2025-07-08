@@ -3,6 +3,7 @@ import * as custom from 'aws-cdk-lib/custom-resources';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as fs from 'fs';
+import * as path from 'path';
 import { Construct } from 'constructs';
 import { StackProps } from "aws-cdk-lib";
 
@@ -151,7 +152,7 @@ export class DataAutomationProject extends Construct {
     const BDA_onEventHandler = new lambda.Function(this, `BedrockDataAutomationProjectHandler`, {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'index.handler',
-      code: new lambda.InlineCode(fs.readFileSync('lambda/python/bda-project-cr-lambda/index_project.py', { encoding: 'utf-8' })),
+      code: new lambda.InlineCode(fs.readFileSync(path.join(__dirname, '../lambda/python/bda-project-cr-lambda/index_project.py'), { encoding: 'utf-8' })),
       timeout: cdk.Duration.minutes(15),
       layers: [layer],
       role: this.role,
