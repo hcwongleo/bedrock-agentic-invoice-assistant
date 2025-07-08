@@ -18,20 +18,35 @@ import { fetchJsonFromPath, useS3ListItems } from '../hooks/useStorage';
 import { QUERY_KEYS } from "../utils/types";
 import { useQueryClient } from '@tanstack/react-query';
 import { remove } from 'aws-amplify/storage';
+import { InvoiceDetailModal } from '../components/InvoiceDetailModal';
   
-interface ApplicationData {
-    applicationId: string;
-    applicantName: string;
-    loanAmount: number;
-    ltvRatio: number;
-    propertyAddress: string;
+interface InvoiceData {
+    invoiceId: string;
+    vendorName: string;
+    invoiceAmount: number;
+    invoiceDate: string;
+    dueDate: string;
+    paymentTerms: string;
+    currency: string;
     status: string;
     notes: string;
     timestamp: string;
+    poNumber?: string;
+    category: string;
+    bankDetails?: {
+        accountNumber?: string;
+        bankCode?: string;
+        swiftCode?: string;
+    };
+    meterReadings?: {
+        meterNumber?: string;
+        deltaReading?: number;
+    };
+    specialRemarks?: string;
 }
 
 interface FilterToken extends PropertyFilterProps.Token {
-    propertyKey: keyof ApplicationData;
+    propertyKey: keyof InvoiceData;
     operator: ":" | "=" | "!=" | ">" | "<";
     value: string;
 }
@@ -41,17 +56,17 @@ interface FilterQuery extends PropertyFilterProps.Query {
     operation: 'and' | 'or';
 }
 
-const filterApplications = (
-    applications: ApplicationData[], 
+const filterInvoices = (
+    invoices: InvoiceData[], 
     query: PropertyFilterProps.Query
 ) => {
-    if (!query.tokens.length) return applications;
+    if (!query.tokens.length) return invoices;
 
-    return applications.filter(app => {
+    return invoices.filter(invoice => {
         const results = query.tokens.map(token => {
             if (!token.propertyKey) return true;
             
-            const value = String(app[token.propertyKey as keyof ApplicationData]);
+            const value = String(invoice[token.propertyKey as keyof InvoiceData]);
             
             switch (token.operator) {
                 case ":":
@@ -78,20 +93,22 @@ const filterApplications = (
 export const Review = () => {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
-    const { data: applicationItems, isLoading, refetch } = useS3ListItems(QUERY_KEYS.APPLICATIONS);
-    const [applications, setApplications] = useState<ApplicationData[]>([]);
+    const { data: invoiceItems, isLoading, refetch } = useS3ListItems(QUERY_KEYS.APPLICATIONS);
+    const [invoices, setInvoices] = useState<InvoiceData[]>([]);
     const [query, setQuery] = useState<PropertyFilterProps.Query>({
         tokens: [],
         operation: "and"
       });
-    const filteredApplications = filterApplications(applications, query);
+    const filteredInvoices = filterInvoices(invoices, query);
     const [isDeleted, setIsDeleted] = useState(false);
+    const [selectedInvoice, setSelectedInvoice] = useState<InvoiceData | null>(null);
+    const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
 
-    const getApplicationCounts = (applications: ApplicationData[]) => {
+    const getInvoiceCounts = (invoices: InvoiceData[]) => {
         return {
-            new: applications.filter(app => app.status === "New application").length,
-            underReview: applications.filter(app => app.status === "Under review").length,
-            awaitingDocs: applications.filter(app => app.status.startsWith("Awaiting")).length
+            pending: invoices.filter(invoice => invoice.status === "Pending Review").length,
+            processed: invoices.filter(invoice => invoice.status === "Processed").length,
+            awaitingApproval: invoices.filter(invoice => invoice.status === "Awaiting Approval").length
         };
     };
 
@@ -103,68 +120,104 @@ export const Review = () => {
     }, [refetch]); 
 
     useEffect(() => {
-        console.log('Application Items:', applicationItems);
-        if (!applicationItems) {
-            setApplications([]);
+        console.log('Invoice Items:', invoiceItems);
+        if (!invoiceItems) {
+            setInvoices([]);
             return;
         }
 
-        const fetchApplications = async () => {
+        const fetchInvoices = async () => {
             try {
-                const applicationsData = await Promise.all(
-                    applicationItems.map(async (item) => {
+                const invoicesData = await Promise.all(
+                    invoiceItems.map(async (item) => {
                         const fullPath = `${item.path}${item.itemName}`;
                         const jsonData = await fetchJsonFromPath(fullPath);
                         if (!jsonData || typeof jsonData === 'string') {
                             console.error('Invalid JSON data received');
                             return null;
                         }
+                        
+                        // Map the data to comprehensive invoice structure
+                        // This handles both old data and new BDA comprehensive invoice results
                         return {
-                            applicationId: jsonData.application_id,
-                            applicantName: `${jsonData.applicant_details.primary_borrower.name}${
-                                jsonData.applicant_details.co_borrower?.name 
-                                ? `, ${jsonData.applicant_details.co_borrower.name}` 
-                                : ''
-                            }`,
-                            loanAmount: jsonData.property_details.mortgage_amount,
-                            ltvRatio: jsonData.property_details.financing_percentage,
-                            propertyAddress: jsonData.property_details.address || jsonData.property_details.property_address,
-                            status: jsonData.status || 
-                            (item === applicationItems[0] ? "New application" : "Under review"),
-                            notes: jsonData.notes || 
-                            (item === applicationItems[0] ? "New submission, needs review" : "-"),
-                            timestamp: jsonData.timestamp
+                            invoiceId: jsonData.InvoiceNumber || 
+                                      jsonData.invoice_id || 
+                                      jsonData.application_id || 
+                                      `INV-${Date.now()}`,
+                            vendorName: jsonData.VendorName || 
+                                       jsonData.vendor_name || 
+                                       jsonData.applicant_details?.primary_borrower?.name || 
+                                       'Unknown Vendor',
+                            invoiceAmount: jsonData.InvoiceTotalAmount || 
+                                          jsonData.invoice_amount || 
+                                          jsonData.property_details?.mortgage_amount || 
+                                          0,
+                            invoiceDate: jsonData.InvoiceDate || 
+                                        jsonData.invoice_date || 
+                                        jsonData.timestamp?.split('T')[0] || 
+                                        new Date().toISOString().split('T')[0],
+                            dueDate: jsonData.DueDate || 
+                                    jsonData.due_date || 
+                                    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                            paymentTerms: jsonData.PaymentTerms || 
+                                         jsonData.payment_terms || 
+                                         'Net 30',
+                            currency: jsonData.Currency || 
+                                     jsonData.currency || 
+                                     'USD',
+                            status: jsonData.status || "Pending Review",
+                            notes: jsonData.notes || "Awaiting processing",
+                            timestamp: jsonData.timestamp || new Date().toISOString(),
+                            poNumber: jsonData.PurchaseOrderNumber || 
+                                     jsonData.po_number || 
+                                     jsonData.purchase_order,
+                            category: jsonData.InvoiceType || 
+                                     jsonData.category || 
+                                     jsonData.invoice_category || 
+                                     "General",
+                            bankDetails: jsonData.VendorBankDetails ? {
+                                accountNumber: jsonData.VendorBankDetails.BankAccountNumber,
+                                bankCode: jsonData.VendorBankDetails.BankCode,
+                                swiftCode: jsonData.VendorBankDetails.SWIFTCode
+                            } : undefined,
+                            meterReadings: jsonData.UtilityMeterReadings && jsonData.UtilityMeterReadings.length > 0 ? {
+                                meterNumber: jsonData.UtilityMeterReadings[0].MeterNumber,
+                                deltaReading: jsonData.UtilityMeterReadings[0].DeltaReading
+                            } : undefined,
+                            specialRemarks: jsonData.SpecialRemarks || 
+                                           jsonData.special_remarks || 
+                                           jsonData.PaymentInstructions
                         };
                     })
                 );
                 
                 // Filter out any null values and sort by timestamp
-                const validApplications = applicationsData
-                    .filter(app => app !== null)
+                const validInvoices = invoicesData
+                    .filter(invoice => invoice !== null)
                     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-                    .map((app, index) => ({
-                        ...app,
-                        status: index === 0 ? "New application" : app.status,
-                        notes: index === 0 ? "New submission, needs review" : (app.notes || "-")
+                    .map((invoice, index) => ({
+                        ...invoice,
+                        status: index === 0 ? "Pending Review" : invoice.status,
+                        notes: index === 0 ? "New invoice, needs review" : (invoice.notes || "Processed")
                     }));
 
-                console.log('Processed and sorted applications:', validApplications);
-                setApplications(validApplications);
+                console.log('Processed and sorted invoices:', validInvoices);
+                setInvoices(validInvoices);
             } catch (error) {
-                console.error('Error loading applications:', error);
+                console.error('Error loading invoices:', error);
             }
         };
 
-        fetchApplications();
-    }, [applicationItems]);
+        fetchInvoices();
+    }, [invoiceItems]);
   
     return(
         <SpaceBetween size="l">
             <BreadcrumbGroup
               items={[
-              { text: "Morgage Loan Approval", href: "/" },
+              { text: "Invoice Processing", href: "/" },
               {
-                  text: "Loan Application List",
+                  text: "Invoice Review Dashboard",
                   href: "#"
               }
               ]}
@@ -172,20 +225,20 @@ export const Review = () => {
             />
 
             <Container
-                header={<Header variant="h2">Application Overview</Header>}
+                header={<Header variant="h2">Invoice Processing Overview</Header>}
             >
                 <ColumnLayout columns={3} variant="text-grid">
                     <div>
-                        <Box variant="awsui-key-label">New Applications</Box>
-                        <Box variant="awsui-value-large">{getApplicationCounts(applications).new}</Box>
+                        <Box variant="awsui-key-label">Pending Review</Box>
+                        <Box variant="awsui-value-large">{getInvoiceCounts(invoices).pending}</Box>
                     </div>
                     <div>
-                        <Box variant="awsui-key-label">Under Review</Box>
-                        <Box variant="awsui-value-large">{getApplicationCounts(applications).underReview}</Box>
+                        <Box variant="awsui-key-label">Processed</Box>
+                        <Box variant="awsui-value-large">{getInvoiceCounts(invoices).processed}</Box>
                     </div>
                     <div>
-                        <Box variant="awsui-key-label">Awaiting Additional Documents</Box>
-                        <Box variant="awsui-value-large">{getApplicationCounts(applications).awaitingDocs}</Box>
+                        <Box variant="awsui-key-label">Awaiting Approval</Box>
+                        <Box variant="awsui-value-large">{getInvoiceCounts(invoices).awaitingApproval}</Box>
                     </div>
                 </ColumnLayout>
             </Container>
@@ -194,109 +247,205 @@ export const Review = () => {
             <PropertyFilter
                 query={query}
                 onChange={({ detail }) => setQuery(detail)}
-                filteringPlaceholder="Find application by applicant's name, email or phone number"
+                filteringPlaceholder="Find invoice by vendor name, invoice ID, or amount"
                 filteringProperties={[
                     {
-                        key: "applicationId",
+                        key: "invoiceId",
                         operators: [":", "=", "!="],
-                        propertyLabel: "Application ID",
-                        groupValuesLabel: "Application ID values"
+                        propertyLabel: "Invoice ID",
+                        groupValuesLabel: "Invoice ID values"
                     },
                     {
-                        key: "applicantName",
+                        key: "vendorName",
                         operators: [":", "=", "!="],
-                        propertyLabel: "Applicant name",
-                        groupValuesLabel: "Applicant names"
+                        propertyLabel: "Vendor Name",
+                        groupValuesLabel: "Vendor names"
                     },
                     {
-                        key: "loanAmount",
+                        key: "invoiceAmount",
                         operators: ["=", "!=", ">", "<"],
-                        propertyLabel: "Loan Amount",
-                        groupValuesLabel: "Loan amounts"
+                        propertyLabel: "Invoice Amount",
+                        groupValuesLabel: "Invoice amounts"
                     },
                     {
                         key: "status",
                         operators: ["=", "!="],
                         propertyLabel: "Status",
                         groupValuesLabel: "Status values"
+                    },
+                    {
+                        key: "paymentTerms",
+                        operators: ["=", "!="],
+                        propertyLabel: "Payment Terms",
+                        groupValuesLabel: "Payment terms"
+                    },
+                    {
+                        key: "paymentTerms",
+                        operators: ["=", "!="],
+                        propertyLabel: "Payment Terms",
+                        groupValuesLabel: "Payment terms"
+                    },
+                    {
+                        key: "currency",
+                        operators: ["=", "!="],
+                        propertyLabel: "Currency",
+                        groupValuesLabel: "Currencies"
+                    },
+                    {
+                        key: "category",
+                        operators: ["=", "!="],
+                        propertyLabel: "Category",
+                        groupValuesLabel: "Categories"
                     }
                 ]}
                 filteringOptions={[
-                    // Add some common values for filtering
-                    { propertyKey: "status", value: "New application" },
-                    { propertyKey: "status", value: "Under review" },
-                    { propertyKey: "status", value: "Awaiting updated W2" },
-                    { propertyKey: "status", value: "Awaiting contract" }
+                    // Status options
+                    { propertyKey: "status", value: "Pending Review" },
+                    { propertyKey: "status", value: "Processed" },
+                    { propertyKey: "status", value: "Awaiting Approval" },
+                    { propertyKey: "status", value: "Rejected" },
+                    // Category options
+                    { propertyKey: "category", value: "General" },
+                    { propertyKey: "category", value: "Utility" },
+                    { propertyKey: "category", value: "Service" },
+                    { propertyKey: "category", value: "Product" },
+                    // Payment terms options
+                    { propertyKey: "paymentTerms", value: "Net 30" },
+                    { propertyKey: "paymentTerms", value: "Net 15" },
+                    { propertyKey: "paymentTerms", value: "Due on Receipt" },
+                    { propertyKey: "paymentTerms", value: "2/10 Net 30" },
+                    // Currency options
+                    { propertyKey: "currency", value: "USD" },
+                    { propertyKey: "currency", value: "EUR" },
+                    { propertyKey: "currency", value: "GBP" }
                 ]}
             />
     
             <Table
                 loading={isLoading}
-                loadingText="Loading applications"
-                items={filteredApplications}
+                loadingText="Loading invoices"
+                items={filteredInvoices}
                 columnDefinitions={[
                 {
-                    id: "applicationId",
-                    header: "Application ID",
+                    id: "invoiceId",
+                    header: "Invoice ID",
                     cell: item => {
-                        const isLatest = item === applications[0];
+                        const isLatest = item === invoices[0];
                         if (isLatest) {
                             return (
                                 <Link
-                                    onClick={() => navigate(`/portal/${item.applicationId}`)}
+                                    onClick={() => navigate(`/portal/${item.invoiceId}`)}
                                 >
-                                    {item.applicationId}
+                                    {item.invoiceId}
                                 </Link>
                             );
                         }
-                        return item.applicationId;
+                        return item.invoiceId;
                     },
-                    sortingField: "applicationId"
+                    sortingField: "invoiceId"
                 },
                 {
-                    id: "applicantName",
-                    header: "Applicant name",
-                    cell: item => item.applicantName,
-                    sortingField: "applicantName"
+                    id: "vendorName",
+                    header: "Vendor Name",
+                    cell: item => item.vendorName,
+                    sortingField: "vendorName"
                 },
                 {
-                    id: "loanAmount",
-                    header: "Loan Amount Requested",
-                    cell: item => `$${item.loanAmount.toLocaleString()}`,
-                    sortingField: "loanAmount"
+                    id: "invoiceAmount",
+                    header: "Invoice Amount",
+                    cell: item => `$${item.invoiceAmount.toLocaleString()}`,
+                    sortingField: "invoiceAmount"
                 },
                 {
-                    id: "ltvRatio",
-                    header: "Loan-to-Value Ratio",
-                    cell: item => `${item.ltvRatio}%`,
-                    sortingField: "ltvRatio"
+                    id: "invoiceDate",
+                    header: "Invoice Date",
+                    cell: item => new Date(item.invoiceDate).toLocaleDateString(),
+                    sortingField: "invoiceDate"
                 },
                 {
-                    id: "propertyAddress",
-                    header: "Property Address",
-                    cell: item => item.propertyAddress
+                    id: "dueDate",
+                    header: "Due Date",
+                    cell: item => new Date(item.dueDate).toLocaleDateString(),
+                    sortingField: "dueDate"
+                },
+                {
+                    id: "paymentTerms",
+                    header: "Payment Terms",
+                    cell: item => item.paymentTerms,
+                    sortingField: "paymentTerms"
+                },
+                {
+                    id: "currency",
+                    header: "Currency",
+                    cell: item => item.currency,
+                    sortingField: "currency"
+                },
+                {
+                    id: "category",
+                    header: "Category",
+                    cell: item => item.category,
+                    sortingField: "category"
+                },
+                {
+                    id: "specialData",
+                    header: "Special Data",
+                    cell: item => {
+                        const specialData = [];
+                        if (item.bankDetails?.accountNumber) {
+                            specialData.push(`Bank: ${item.bankDetails.accountNumber}`);
+                        }
+                        if (item.meterReadings?.meterNumber) {
+                            specialData.push(`Meter: ${item.meterReadings.meterNumber}`);
+                        }
+                        if (item.meterReadings?.deltaReading) {
+                            specialData.push(`Usage: ${item.meterReadings.deltaReading}`);
+                        }
+                        return specialData.length > 0 ? specialData.join(', ') : '-';
+                    }
+                },
+                {
+                    id: "poNumber",
+                    header: "PO Number",
+                    cell: item => item.poNumber || "-"
                 },
                 {
                     id: "status",
-                    header: "Application Status",
+                    header: "Processing Status",
                     cell: item => {
                         const getStatusType = (status: string, isLatest: boolean) => {
                             if (isLatest) return "info";
-                            if (status.startsWith("Awaiting")) return "warning"; 
+                            if (status === "Awaiting Approval") return "warning";
+                            if (status === "Processed") return "success";
+                            if (status === "Rejected") return "error";
                             return "in-progress"; 
                         };
                 
-                        // Check if this is the latest application by timestamp
-                        const isLatest = item === applications[0];
+                        // Check if this is the latest invoice by timestamp
+                        const isLatest = item === invoices[0];
                 
                         return (
                             <StatusIndicator 
                                 type={getStatusType(item.status, isLatest)}
                             >
-                                {isLatest ? "New application" : item.status}
+                                {isLatest ? "Pending Review" : item.status}
                             </StatusIndicator>
                         )
                     }
+                },
+                {
+                    id: "actions",
+                    header: "Actions",
+                    cell: item => (
+                        <Button
+                            variant="inline-link"
+                            onClick={() => {
+                                setSelectedInvoice(item);
+                                setIsDetailModalVisible(true);
+                            }}
+                        >
+                            View Details
+                        </Button>
+                    )
                 },
                 {
                     id: "notes",
@@ -305,7 +454,10 @@ export const Review = () => {
                 }]}
                 empty={
                     <Box textAlign="center" color="inherit">
-                        <b>No applications found</b>
+                        <b>No invoices found</b>
+                        <Box variant="p" color="inherit">
+                            Upload invoice documents to get started with processing.
+                        </Box>
                     </Box>
                 }
                 header={
@@ -315,9 +467,9 @@ export const Review = () => {
                             <Button 
                                 iconName={isDeleted ? "status-positive" : "remove"}
                                 onClick={async () => {
-                                   if (applicationItems) {
+                                   if (invoiceItems) {
                                        // Get the items in reverse order to get the latest one
-                                       const items = [...applicationItems].reverse();
+                                       const items = [...invoiceItems].reverse();
                                        console.log("Reversed items:", items);
                                        
                                        if (items.length > 0) {
@@ -347,8 +499,17 @@ export const Review = () => {
                                 {isDeleted ? "Deleted" : "Clear"}
                             </Button>
                         }
-                    >Loan Applications</Header>
+                    >Invoice Processing Queue</Header>
                 }
+            />
+
+            <InvoiceDetailModal
+                visible={isDetailModalVisible}
+                onDismiss={() => {
+                    setIsDetailModalVisible(false);
+                    setSelectedInvoice(null);
+                }}
+                invoice={selectedInvoice}
             />
         </SpaceBetween>
     );

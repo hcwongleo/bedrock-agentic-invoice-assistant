@@ -1,6 +1,5 @@
 import { SideNavigation } from "@cloudscape-design/components";
 import { useLocation, useNavigate, Routes, Route, } from "react-router-dom";
-import { Home } from "./Home";
 import { Chat } from "./Chat";
 import { appName } from "../atoms/AppAtoms";
 import { Review } from "./Review";
@@ -8,17 +7,13 @@ import { InfoPanel } from "../components/InfoPanel";
 import { Portal } from "./Portal";
 
 export const AppRoutes = {
-    home: {
-        text: "Home",
+    chat: {
+        text: "Invoice Processing",
         href: "/",
     },
     review: {
         text: "Review",
         href: "/review",
-    },
-    chat: {
-        text: "Chat",
-        href: "/chat",
     },
     portal: {
         text: "Portal",
@@ -41,18 +36,14 @@ export const AppSideNavigation = () => {
                 }
             }}
             items={[
-                { type: "link", text: AppRoutes.home.text, href: AppRoutes.home.href },
+                { type: "link", text: AppRoutes.chat.text, href: AppRoutes.chat.href },
                 {
                     type: "section",
-                    text: "Demos",
+                    text: "Additional Features",
                     items: [
-                        {
-                            type: "link", text: AppRoutes.chat.text, href: AppRoutes.chat.href
-                        },
                         {
                             type: "link", text: AppRoutes.review.text, href: AppRoutes.review.href
                         },
-
                     ]
                 },
                 {
@@ -71,9 +62,8 @@ export const AppSideNavigation = () => {
 export const PageContent = () => {
     return (
         <Routes>
-            <Route path={AppRoutes.home.href} element={<Home />} />
-            <Route path={AppRoutes.review.href} element={<Review />} />
             <Route path={AppRoutes.chat.href} element={<Chat />} />
+            <Route path={AppRoutes.review.href} element={<Review />} />
             <Route path="/portal/:applicationId" element={<Portal />} />
         </Routes>
     )

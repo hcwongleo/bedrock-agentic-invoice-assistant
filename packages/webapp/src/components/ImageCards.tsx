@@ -1,4 +1,4 @@
-import { Header, Cards, Spinner, Box, Icon } from "@cloudscape-design/components";
+import { Header, Cards, Spinner, Box, Icon, Button, SpaceBetween } from "@cloudscape-design/components";
 import { useEffect, useState } from "react";
 import { Document, Page, pdfjs } from 'react-pdf';
 import { PdfPreview } from '../components/PdfPreview';
@@ -6,6 +6,7 @@ import { fetchJsonFromPath, useS3ListItems } from "../hooks/useStorage";
 import { QUERY_KEYS, DocumentType } from "../utils/types";
 import { useAtom } from "jotai";
 import { documentsAtom, selectionAtom } from "../atoms/WizardAtoms";
+import { FileUpload } from './FileUpload';
 
 
 const getFileType = (fileName: string): 'pdf' | 'image' | 'unknown' => {
@@ -16,10 +17,11 @@ const getFileType = (fileName: string): 'pdf' | 'image' | 'unknown' => {
 };
 
 export const ImageCards = () => {
-    const { data: documentItems, isLoading } = useS3ListItems(QUERY_KEYS.DOCUMENTS);
+    const { data: documentItems, isLoading, refetch } = useS3ListItems(QUERY_KEYS.DOCUMENTS);
     const [documents, setDocuments] = useAtom(documentsAtom);
     const [selection, setSelection] = useAtom(selectionAtom);
     const [numPages, setNumPages] = useState<number | null>(null);
+    const [showUpload, setShowUpload] = useState(false);
 
     const clearSelection = () => {
         setSelection({
@@ -66,6 +68,17 @@ export const ImageCards = () => {
         });
     };
 
+    const handleUploadComplete = (fileName: string) => {
+        console.log('File uploaded successfully:', fileName);
+        // Refresh the document list
+        refetch();
+        setShowUpload(false);
+    };
+
+    const handleUploadError = (error: string) => {
+        console.error('Upload error:', error);
+    };
+
     const renderDocumentPreview = (item: DocumentType) => {
         const fileType = getFileType(item.id);
 
@@ -96,64 +109,111 @@ export const ImageCards = () => {
         );
     };
 
+    if (showUpload) {
+        return (
+            <Box padding="s">
+                <SpaceBetween size="m">
+                    <Button 
+                        variant="link" 
+                        iconName="arrow-left"
+                        onClick={() => setShowUpload(false)}
+                    >
+                        Back to Document Selection
+                    </Button>
+                    <FileUpload 
+                        onUploadComplete={handleUploadComplete}
+                        onUploadError={handleUploadError}
+                    />
+                </SpaceBetween>
+            </Box>
+        );
+    }
+
     return (
         <Box padding="s">
             {isLoading && <Spinner />}
-            {documents.length > 0 && (
-                <Cards
-                    onSelectionChange={({ detail }) => 
-                        onChangeDocumentSelection(detail.selectedItems)
-                    }
-                    selectedItems={selection.selectedDocs}
-                    ariaLabels={{
-                        itemSelectionLabel: (e, n) => `select ${n.title}`,
-                        selectionGroupLabel: "Document selection"
-                    }}
-                    cardDefinition={{
-                        header: item => (
-                            <Box padding="s" fontSize="heading-m">
-                                {item.title}
-                            </Box>
-                        ),
-                        sections: [
-                            {
-                                id: "image",
-                                content: renderDocumentPreview
-                            },
-                            {
-                                id: "description",
-                                content: item => item.description
-                            }
-                        ]
-                    }}
-                    cardsPerRow={[
-                        { cards: 1 },
-                        { minWidth: 500, cards: 3 },
-                        { minWidth: 900, cards: 3 }
-                    ]}
-                    items={documents}
-                    loadingText="Loading documents"
-                    selectionType="multi"
-                    trackBy="id"
-                    visibleSections={["image", "description"]}
-                    empty={
-                        <Box textAlign="center" color="inherit">
-                            <b>No documents available</b>
+            
+            {!isLoading && documents.length === 0 && (
+                <Box textAlign="center" padding="xl">
+                    <SpaceBetween size="m">
+                        <Icon name="file" size="big" />
+                        <Box variant="h3">No documents available</Box>
+                        <Box variant="p" color="text-body-secondary">
+                            Upload your invoice documents to get started with processing.
                         </Box>
-                    }
-                    header={
-                        <Header
-                            variant="h2"
-                            counter={
-                                selection.selectedDocs.length
-                                    ? `(${selection.selectedDocs.length}/${documents.length})`
-                                    : `(${documents.length})`
-                            }
+                        <Button 
+                            variant="primary" 
+                            iconName="upload"
+                            onClick={() => setShowUpload(true)}
                         >
-                            Select Documents
-                        </Header>
-                    }
-                />
+                            Upload Documents
+                        </Button>
+                    </SpaceBetween>
+                </Box>
+            )}
+
+            {documents.length > 0 && (
+                <SpaceBetween size="m">
+                    <Box textAlign="right">
+                        <Button 
+                            variant="normal" 
+                            iconName="add-plus"
+                            onClick={() => setShowUpload(true)}
+                        >
+                            Upload More Documents
+                        </Button>
+                    </Box>
+                    
+                    <Cards
+                        onSelectionChange={({ detail }) => 
+                            onChangeDocumentSelection(detail.selectedItems)
+                        }
+                        selectedItems={selection.selectedDocs}
+                        ariaLabels={{
+                            itemSelectionLabel: (e, n) => `select ${n.title}`,
+                            selectionGroupLabel: "Document selection"
+                        }}
+                        cardDefinition={{
+                            header: item => (
+                                <Box padding="s" fontSize="heading-m">
+                                    {item.title}
+                                </Box>
+                            ),
+                            sections: [
+                                {
+                                    id: "image",
+                                    content: renderDocumentPreview
+                                },
+                                {
+                                    id: "description",
+                                    content: item => item.description
+                                }
+                            ]
+                        }}
+                        cardsPerRow={[
+                            { cards: 1 },
+                            { minWidth: 500, cards: 3 },
+                            { minWidth: 900, cards: 3 }
+                        ]}
+                        items={documents}
+                        loadingText="Loading documents"
+                        selectionType="multi"
+                        trackBy="id"
+                        visibleSections={["image", "description"]}
+                        header={
+                            <Header
+                                variant="h2"
+                                counter={
+                                    selection.selectedDocs.length
+                                        ? `(${selection.selectedDocs.length}/${documents.length})`
+                                        : `(${documents.length})`
+                                }
+                            >
+                                Select Documents
+                            </Header>
+                        }
+                    />
+                </SpaceBetween>
             )}
         </Box>
     );

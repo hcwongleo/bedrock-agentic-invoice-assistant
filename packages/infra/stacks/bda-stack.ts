@@ -1,5 +1,4 @@
-import { Stack, StackProps, Aspects, Duration, aws_events_targets as targets, aws_events as events, 
-    aws_s3_deployment as s3deploy } from "aws-cdk-lib";
+import { Stack, StackProps, Aspects, Duration, aws_events_targets as targets, aws_events as events, CustomResource } from "aws-cdk-lib";
 import { Bucket } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 import { DataAutomationBlueprint, DataAutomationProject } from "../constructs/bda-construct";
@@ -8,6 +7,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as fs from 'fs';
 import * as BDAConfig from '../config/BDAConfig';
+import * as custom from 'aws-cdk-lib/custom-resources';
 
 interface BDAStackProps extends StackProps {
     fileBucket: Bucket;
@@ -23,56 +23,46 @@ export class BDAStack extends Stack {
 
         Aspects.of(this).add(new AwsSolutionsChecks());
 
-        const blueprint_pay_stub = new DataAutomationBlueprint(this, "BDA-blueprint-paystub", {
-            blueprintName: `PayStub-Custom`,
+        const blueprint_comprehensive_invoice = new DataAutomationBlueprint(this, "BDA-blueprint-comprehensive-invoice", {
+            blueprintName: `ComprehensiveInvoice-Custom`,
             type: 'DOCUMENT',
-            schema: BDAConfig.customBlueprint.PayStub,
+            schema: BDAConfig.customBlueprint.ComprehensiveInvoice,
         });
-  
-        const blueprint_bank_check = new DataAutomationBlueprint(this, "BDA-blueprint-USbankcheck", {
-            blueprintName: `USBankCheck-Custom`,
-            type: 'DOCUMENT',
-            schema: BDAConfig.customBlueprint.USBankCheck,
+
+        // Use the existing LoanApp project instead of creating a new one
+        const projectArn = "arn:aws:bedrock:us-east-1:761018861641:data-automation-project/172f4a3b1db8";
+        
+        // Create a custom resource to represent the existing project
+        const projectCustomResource = new CustomResource(this, "BDA-project", {
+            serviceToken: new custom.Provider(this, "ProjectArnProvider", {
+                onEventHandler: new lambda.Function(this, "ProjectArnProviderHandler", {
+                    runtime: lambda.Runtime.NODEJS_18_X,
+                    handler: "index.handler",
+                    code: lambda.Code.fromInline(`
+                        exports.handler = async (event) => {
+                            return {
+                                PhysicalResourceId: event.LogicalResourceId,
+                                Data: {
+                                    ProjectArn: "${projectArn}"
+                                }
+                            };
+                        };
+                    `)
+                })
+            }).serviceToken,
+            properties: {
+                ProjectArn: projectArn
+            }
         });
-  
-        blueprint_bank_check.node.addDependency(blueprint_pay_stub);
-  
-        const blueprint_bank_statement = new DataAutomationBlueprint(this, "BDA-blueprint-bankstatement", {
-            blueprintName: `BankStatement-Custom`,
-            type: 'DOCUMENT',
-            schema: BDAConfig.customBlueprint.BankStatement,
-        });
-  
-        blueprint_bank_statement.node.addDependency(blueprint_pay_stub);
-        blueprint_bank_statement.node.addDependency(blueprint_bank_check);
-  
-        const project = new DataAutomationProject(this, "BDA-project", {
-            projectName: `LoanApp`,
-            standardOutputConfiguration: BDAConfig.standardOutputConfiguration,
-            customOutputConfiguration: {
-                'blueprints': [
-                    {
-                        'blueprintArn': BDAConfig.sampleBlueprints["US-Driver-License"]
-                    },
-                    {
-                        'blueprintArn': blueprint_bank_statement.blueprintARN
-                    },
-                    {
-                        'blueprintArn': blueprint_bank_check.blueprintARN
-                    },
-                    {
-                        'blueprintArn': BDAConfig.sampleBlueprints["W2-Form"]
-                    },
-                    {
-                        'blueprintArn': blueprint_pay_stub.blueprintARN
-                    },
-                ]
-            },
-        });
-  
-        project.node.addDependency(blueprint_pay_stub);
-        project.node.addDependency(blueprint_bank_check);
-        project.node.addDependency(blueprint_bank_statement);
+        
+        const project = {
+            projectARN: projectArn,
+            node: {
+                addDependency: (construct: any) => {}
+            }
+        };
+        
+        project.node.addDependency(blueprint_comprehensive_invoice);
   
         if (this.fileBucket && !this.fileBucket.encryptionKey) {
             throw new Error('Bucket encryption key is required');
@@ -82,7 +72,6 @@ export class BDAStack extends Stack {
           const invokeDataAutomationLambdaFunction = this.createInvokeDataAutomationFunction({
             targetBucketName: this.fileBucket.bucketName,
             accountId: this.account,
-            dataProjectArn: project.projectARN,
             targetBucketKey: this.fileBucket.encryptionKey!.keyArn
           });
       
@@ -98,27 +87,11 @@ export class BDAStack extends Stack {
             },
           });
           rule.addTarget(new targets.LambdaFunction(invokeDataAutomationLambdaFunction));
-          
-          const documentsDeployment = new s3deploy.BucketDeployment(this, `DeployDocuments`, {
-            sources: [s3deploy.Source.asset('./lambda/python/bda-load-lambda/documents.zip')],
-            destinationBucket: this.fileBucket,
-            destinationKeyPrefix: 'datasets/documents',
-          });
-          
-          const applicationsDeployment = new s3deploy.BucketDeployment(this, `DeployApplications`, {
-            sources: [s3deploy.Source.asset('./lambda/python/bda-load-lambda/sample-applications.zip')],
-            destinationBucket: this.fileBucket,
-            destinationKeyPrefix: 'applications',
-          });
-          
-          documentsDeployment.node.addDependency(rule, invokeDataAutomationLambdaFunction);
-          applicationsDeployment.node.addDependency(rule, invokeDataAutomationLambdaFunction);
     }
   
     private createInvokeDataAutomationFunction(params: {
         targetBucketName: string;
         accountId: string;
-        dataProjectArn?: string;
         targetBucketKey?: string;
       }): lambda.Function {
   
@@ -150,9 +123,8 @@ export class BDAStack extends Stack {
             environment: {
               TARGET_BUCKET_NAME: params.targetBucketName,
               ACCOUNT_ID: this.account,
-              ...(params.dataProjectArn && {
-                DATA_PROJECT_ARN: params.dataProjectArn,
-              }),
+              // Hardcode the DATA_PROJECT_ARN to use the existing LoanApp project
+              DATA_PROJECT_ARN: "arn:aws:bedrock:us-east-1:761018861641:data-automation-project/172f4a3b1db8",
             },
           }
         );

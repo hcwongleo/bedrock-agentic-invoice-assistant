@@ -182,7 +182,6 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                 <Input 
                                     value={formData.invoiceDate}
                                     onChange={e => handleInputChange('invoiceDate', e.detail.value)}
-                                    type="date"
                                 />
                             </FormField>
                             <FormField label="Payment Terms">
@@ -195,7 +194,6 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                 <Input 
                                     value={formData.dueDate}
                                     onChange={e => handleInputChange('dueDate', e.detail.value)}
-                                    type="date"
                                 />
                             </FormField>
                             <FormField label="Currency">

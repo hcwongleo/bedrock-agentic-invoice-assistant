@@ -24,11 +24,11 @@ export const Chat = () => {
     const [selection, setSelection] = useAtom(selectionAtom);
 
     const promptItems = [
-        { text: "Start my application", id: "start" },
-        { text: "Upload my driver's license", id: "license" },
-        { text: "Upload my W2", id: "w2" },
-        { text: "Upload bank statement", id: "bank" },
-        { text: "Submit my application", id: "submit" }
+        { text: "Upload invoice documents", id: "upload" },
+        { text: "Process my invoices", id: "process" },
+        { text: "Identify vendors", id: "vendors" },
+        { text: "Generate SAP data", id: "sap" },
+        { text: "Review extracted data", id: "review" }
     ];
     
     const handleScrollToEnd = useCallback(() => {
@@ -210,7 +210,7 @@ export const Chat = () => {
                                 </Button>
                             </SpaceBetween>
                         }
-                    >Loan Application Assistant</Header>}
+                    >Invoice Processing Assistant</Header>}
                     fitHeight
                     disableContentPaddings
                     footer={
@@ -299,7 +299,7 @@ export const Chat = () => {
                 <Modal
                     visible={isModalVisible}
                     onDismiss={handleModalClose}
-                    header="Select Documents"
+                    header="Upload & Select Invoice Documents"
                     size="large"
                     footer={
                         <Box float="right">

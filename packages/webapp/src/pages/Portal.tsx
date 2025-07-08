@@ -336,9 +336,6 @@ export const Portal = () => {
                                 <Box variant="awsui-key-label">Invoice ID</Box>
                                 <Box variant="p">
                                     {extractedData?.invoiceId || `INV-${Date.now().toString().slice(-6)}`}
-                                    ) : (
-                                        '-'
-                                    )}
                                 </Box>
                             </div>
                             <div>

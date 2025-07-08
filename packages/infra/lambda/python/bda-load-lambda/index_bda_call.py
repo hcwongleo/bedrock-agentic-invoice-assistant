@@ -7,7 +7,8 @@ import time
 from botocore.config import Config
 
 TARGET_BUCKET_NAME = os.environ.get('TARGET_BUCKET_NAME', None)
-DATA_PROJECT_ARN = os.environ.get('DATA_PROJECT_ARN', None)
+# Use the hardcoded project ARN instead of relying on the environment variable
+DATA_PROJECT_ARN = "arn:aws:bedrock:us-east-1:761018861641:data-automation-project/172f4a3b1db8"
 ACCOUNT_ID = os.environ.get('ACCOUNT_ID', None)
 
 config = Config(

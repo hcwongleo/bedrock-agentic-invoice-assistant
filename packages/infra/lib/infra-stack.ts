@@ -71,6 +71,7 @@ export class InfraStack extends cdk.Stack {
       ...props,
       regionalWebAclArn: wafStack.regionalWebAcl.attrArn,
       distributionDomainName: websiteWafStack.cloudfrontDistribution.distributionDomainName,
+      kmsKey: websiteWafStack.kmsKey
     })
     authStack.addDependency(wafStack)
     authStack.addDependency(websiteWafStack)
@@ -136,14 +137,6 @@ export class InfraStack extends cdk.Stack {
       id: "AwsSolutions-L1",
       reason: "Using latest supported Python runtime (3.12)",
     }])
-
-    // allow cognito auth role to access decrypt data bucket
-    authStack.authenticatedRole.addToPrincipalPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: ["kms:Decrypt"],
-        resources: [websiteWafStack.kmsKey.keyArn]
-      }))
 
     NagSuppressions.addStackSuppressions(authStack, [{
       id: "AwsSolutions-IAM5",

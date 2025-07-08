@@ -6,11 +6,13 @@ import { AccountRecovery, CfnIdentityPool, CfnIdentityPoolRoleAttachment, CfnUse
 import { Role, FederatedPrincipal, Effect, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { CfnWebACLAssociation } from "aws-cdk-lib/aws-wafv2";
 import { NagSuppressions } from "cdk-nag";
+import { Key } from "aws-cdk-lib/aws-kms";
 
 
 interface AuthStackProps extends StackProps {
     regionalWebAclArn: string;
     distributionDomainName: string;
+    kmsKey: Key;
 }
 
 export class AuthStack extends Stack {
@@ -124,6 +126,19 @@ export class AuthStack extends Stack {
                 "sts:AssumeRoleWithWebIdentity"
             ),
         });
+
+        // Add KMS permissions to the authenticated role
+        this.authenticatedRole.addToPolicy(
+            new PolicyStatement({
+                effect: Effect.ALLOW,
+                actions: [
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey",
+                    "kms:DescribeKey"
+                ],
+                resources: [props.kmsKey.keyArn],
+            })
+        );
 
 
         // Role associated with unauthenticated users

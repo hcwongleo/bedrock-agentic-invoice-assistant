@@ -7,7 +7,6 @@ import * as path from 'path';
 import * as cdk from 'aws-cdk-lib';
 import { bedrock } from '@cdklabs/generative-ai-cdk-constructs';
 import { AgentActionGroup } from '@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock';
-import { BedrockMacAgent } from "../constructs/mac-construct";
 import * as MACConfig from '../config/MACConfig';
 import { lambdaArchitecture, lambdaRuntime } from "../config/AppConfig";
 
@@ -15,11 +14,8 @@ import { lambdaArchitecture, lambdaRuntime } from "../config/AppConfig";
 export class MacStack extends Stack {
     public agentId: string;
     public agentAliasId: string;
-    public broker_agent: bedrock.Agent;
-    public broker_agentAlias:_bedrock.CfnAgentAlias;
-    public loan_application_assistant_agent: bedrock.Agent;
-    public loan_application_assistant_agentAlias:_bedrock.CfnAgentAlias;
-
+    public invoice_app_assistant_agent: bedrock.Agent;
+    public invoice_app_assistant_agentAlias: _bedrock.CfnAgentAlias;
     
     constructor(scope: Construct, id: string, props: StackProps) {
         super(scope, id, props);
@@ -91,26 +87,12 @@ export class MacStack extends Stack {
             }
         });
 
-        /* BROKER AGENT + action group */
-        this.broker_agent = new bedrock.Agent(this, "broker_agent_agent", {
-            name: `broker_agent`,
-            foundationModel: bedrock.BedrockFoundationModel.AMAZON_NOVA_PRO_V1,
-            instruction: MACConfig.MACAgentInstruction.BrokerAgent,
-            shouldPrepareAgent: true,
-            description: MACConfig.MACDescription.BrokerAgent
-        })
-
-        const broker_agentAlias = new _bedrock.CfnAgentAlias(this, 'broker_agentAlias', {
-            agentAliasName: `broker_agent`,
-            agentId: this.broker_agent.agentId,
-        });
-
-        /* ASSISTANT AGENT + action group */
-        const LoanAssistantActionGroup_lambda = new lambda_python.PythonFunction(this, 'LoanActionGroup_lambda', {
+        /* INVOICE APP ASSISTANT AGENT + action group */
+        const InvoiceProcessingActionGroup_lambda = new lambda_python.PythonFunction(this, 'InvoiceProcessingActionGroup_lambda', {
             runtime: lambdaRuntime,
             architecture: lambdaArchitecture,
             handler: 'lambda_handler',
-            index: 'loan_applicant_function.py',
+            index: 'invoice_processing_function.py',
             entry: path.join(__dirname, '../lambda/python/bedrock-action-group-lambda'),
             timeout: cdk.Duration.minutes(5),
             memorySize: 1024,
@@ -119,7 +101,7 @@ export class MacStack extends Stack {
             },
         });
 
-        LoanAssistantActionGroup_lambda.addToRolePolicy(new iam.PolicyStatement({
+        InvoiceProcessingActionGroup_lambda.addToRolePolicy(new iam.PolicyStatement({
             actions: [
                 "s3:*",
                 "kms:Decrypt",
@@ -130,55 +112,38 @@ export class MacStack extends Stack {
             resources: ["*"],
         }));
 
-        const LoanAssistantActionGroup = new AgentActionGroup({
-            name: `loan_action_group`,
-            description: 'Handle applicant information collection and document review for loan applicants.',
-            executor: bedrock.ActionGroupExecutor.fromlambdaFunction(LoanAssistantActionGroup_lambda),
+        const InvoiceProcessingActionGroup = new AgentActionGroup({
+            name: `invoice_processing_action_group`,
+            description: 'Handle invoice processing, document verification, and data extraction.',
+            executor: bedrock.ActionGroupExecutor.fromlambdaFunction(InvoiceProcessingActionGroup_lambda),
             enabled: true,
-            functionSchema: MACConfig.LoanApplicationActionGroup,
+            functionSchema: MACConfig.InvoiceProcessingActionGroup,
         });
 
-        this.loan_application_assistant_agent = new bedrock.Agent(this, "loan_application_assistant_agent", {
-            name: `loan_application_assistant`,
+        // Create a simple invoice assistant agent
+        this.invoice_app_assistant_agent = new bedrock.Agent(this, "invoice_assistant_agent", {
+            name: `invoice_assistant`,
             foundationModel: bedrock.BedrockFoundationModel.AMAZON_NOVA_PRO_V1,
-            instruction: MACConfig.MACAgentInstruction.LoanAppAssistant,
+            instruction: MACConfig.MACAgentInstruction.InvoiceAssistant,
             shouldPrepareAgent: true,
-            description: MACConfig.MACDescription.LoanAppAssistant,
+            description: MACConfig.MACDescription.InvoiceAssistant,
             codeInterpreterEnabled: true
-        })
-
-        const loan_application_assistant_agentAlias = new _bedrock.CfnAgentAlias(this, 'loan_application_assistant_agentAlias', {
-            agentAliasName: `loan_application_assistant`,
-            agentId: this.loan_application_assistant_agent.agentId,
         });
 
-        this.loan_application_assistant_agent.addActionGroup(LoanAssistantActionGroup)
+        // Add the action group to the agent
+        this.invoice_app_assistant_agent.addActionGroup(InvoiceProcessingActionGroup);
 
-        /* SUPERVISOR AGENT */
-        const loan_assistant_agent = new BedrockMacAgent(this, "loan_assistant_agent", {
-            agentName: `loan_assistant`,
-            agentCollaboration: 'SUPERVISOR_ROUTER',
-            instruction: MACConfig.MACAgentInstruction.LoanAssistant,
-            description: MACConfig.MACDescription.LoanAssistant,
-            agentResourceRoleArn: agent_role.roleArn,
-            foundationModel: MACConfig.FoundationModel.Nova_Pro,
-            codeInterpreterEnabled: true,
-            associateCollaborators: [
-                {
-                    "sub_agent_association_name": `broker_agent`, "sub_agent_alias_arn": broker_agentAlias.attrAgentAliasArn,
-                    "sub_agent_instruction": MACConfig.MACCollaborationInstruction.BrokerAgent
-                },
-                {
-                    "sub_agent_association_name": `loan_application_assistant_agent`, "sub_agent_alias_arn": loan_application_assistant_agentAlias.attrAgentAliasArn,
-                    "sub_agent_instruction": MACConfig.MACCollaborationInstruction.LoanAppAssistant
-                },
-            ],
+        // Create an alias for the agent
+        const invoice_assistant_agentAlias = new _bedrock.CfnAgentAlias(this, 'invoice_assistant_agentAlias', {
+            agentAliasName: `invoice_assistant`,
+            agentId: this.invoice_app_assistant_agent.agentId,
         });
-        loan_assistant_agent.node.addDependency(this.loan_application_assistant_agent);
 
-        this.agentId = loan_assistant_agent.agentId;
-        this.agentAliasId = loan_assistant_agent.agentAliasId;
+        // Set the agent ID and alias ID
+        this.agentId = this.invoice_app_assistant_agent.agentId;
+        this.agentAliasId = invoice_assistant_agentAlias.attrAgentAliasId;
 
+        // Create outputs
         new cdk.CfnOutput(this, 'AgentId', {
             value: this.agentId,
             description: 'The ID of the Bedrock agent',

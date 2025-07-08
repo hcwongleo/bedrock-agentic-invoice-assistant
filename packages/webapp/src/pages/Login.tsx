@@ -127,7 +127,7 @@ export const Login = () => {
                             <Box padding={{ top: "m" }} variant="h1" textAlign="center">
                                 <TextContent>
                                     <center>
-                                        <h2 style={{ color: "black" }}>Auto Loan App</h2>
+                                        <h2 style={{ color: "black" }}>Auto Invoice App</h2>
                                     </center>
                                 </TextContent>
 
