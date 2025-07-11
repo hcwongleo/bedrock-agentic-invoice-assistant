@@ -9,6 +9,7 @@ import messages from "@cloudscape-design/components/i18n/messages/all.all";
 import { AppLayout } from "@cloudscape-design/components";
 import { PageContent, InfoContent, AppSideNavigation } from "./PageNavigation";
 import { applyMode } from "@cloudscape-design/global-styles";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 
 const LOCALE = 'en';
 const appLayoutLabels = {
@@ -33,40 +34,42 @@ export const AppBase = () => {
     applyMode(theme);
 
     return (
-        <QueryClientProvider client={queryClient}>
-            <ToastContainer position="bottom-left"
-                hideProgressBar={false}
-                newestOnTop={true}
-                closeOnClick
-                rtl={false}
-                pauseOnFocusLoss={false}
-                draggable
-                pauseOnHover
-                theme={theme}
-                transition={Slide}
-            />
-            <BrowserRouter>
-                <I18nProvider locale={LOCALE} messages={[messages]}>
-                    <TopBar />
-                    <AppLayout
-                        content={<PageContent />}
-                        // breadcrumbs={<> Page Crumbs </>}
-                        // splitPanelOpen={showSplitPanel}
-                        // splitPanel={<SplitPanelPage />}
-                        // onSplitPanelToggle={() => setShowSplitPanel(!showSplitPanel)}
-                        navigationOpen={navDrawer}
-                        navigation={<AppSideNavigation />}
-                        onNavigationChange={({ detail }) => setNavDrawer(detail.open)}
-                        tools={<InfoContent />}
-                        toolsOpen={infoDrawer}
-                        onToolsChange={({ detail }) => setInfoDrawer(detail.open)}
-                        contentType="default"
-                        ariaLabels={appLayoutLabels}
-                        notifications={[]} // stack page level notifications here
-                    />
-                </I18nProvider>
-            </BrowserRouter>
-        </QueryClientProvider>
+        <ErrorBoundary>
+            <QueryClientProvider client={queryClient}>
+                <ToastContainer position="bottom-left"
+                    hideProgressBar={false}
+                    newestOnTop={true}
+                    closeOnClick
+                    rtl={false}
+                    pauseOnFocusLoss={false}
+                    draggable
+                    pauseOnHover
+                    theme={theme}
+                    transition={Slide}
+                />
+                <BrowserRouter>
+                    <I18nProvider locale={LOCALE} messages={[messages]}>
+                        <TopBar />
+                        <AppLayout
+                            content={<ErrorBoundary><PageContent /></ErrorBoundary>}
+                            // breadcrumbs={<> Page Crumbs </>}
+                            // splitPanelOpen={showSplitPanel}
+                            // splitPanel={<SplitPanelPage />}
+                            // onSplitPanelToggle={() => setShowSplitPanel(!showSplitPanel)}
+                            navigationOpen={navDrawer}
+                            navigation={<AppSideNavigation />}
+                            onNavigationChange={({ detail }) => setNavDrawer(detail.open)}
+                            tools={<InfoContent />}
+                            toolsOpen={infoDrawer}
+                            onToolsChange={({ detail }) => setInfoDrawer(detail.open)}
+                            contentType="default"
+                            ariaLabels={appLayoutLabels}
+                            notifications={[]} // stack page level notifications here
+                        />
+                    </I18nProvider>
+                </BrowserRouter>
+            </QueryClientProvider>
+        </ErrorBoundary>
 
     )
 }

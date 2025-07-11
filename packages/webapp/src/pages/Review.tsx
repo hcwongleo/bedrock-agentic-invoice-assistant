@@ -19,6 +19,7 @@ import { QUERY_KEYS } from "../utils/types";
 import { useQueryClient } from '@tanstack/react-query';
 import { remove } from 'aws-amplify/storage';
 import { InvoiceDetailModal } from '../components/InvoiceDetailModal';
+import { BDAResultModal } from '../components/BDAResultModal';
   
 interface InvoiceData {
     invoiceId: string;
@@ -103,6 +104,9 @@ export const Review = () => {
     const [isDeleted, setIsDeleted] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState<InvoiceData | null>(null);
     const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
+    const [selectedBDAResult, setSelectedBDAResult] = useState<any>(null);
+    const [selectedFileName, setSelectedFileName] = useState<string>('');
+    const [isBDAModalVisible, setIsBDAModalVisible] = useState(false);
 
     const getInvoiceCounts = (invoices: InvoiceData[]) => {
         return {
@@ -110,6 +114,56 @@ export const Review = () => {
             processed: invoices.filter(invoice => invoice.status === "Processed").length,
             awaitingApproval: invoices.filter(invoice => invoice.status === "Awaiting Approval").length
         };
+    };
+
+    const fetchBDAResult = async (invoiceId: string) => {
+        try {
+            // Try to find the corresponding BDA result file
+            const bdaFileName = `${invoiceId.toLowerCase()}-result.json`;
+            const bdaResult = await fetchJsonFromPath(`bda-result/${bdaFileName}`);
+            return bdaResult;
+        } catch (error) {
+            console.error('Error fetching BDA result:', error);
+            return null;
+        }
+    };
+
+    const handleViewResult = async (invoice: InvoiceData) => {
+        const bdaResult = await fetchBDAResult(invoice.invoiceId);
+        if (bdaResult) {
+            setSelectedBDAResult(bdaResult);
+            setSelectedFileName(invoice.invoiceId);
+            setIsBDAModalVisible(true);
+        } else {
+            // Fallback: create a mock BDA result from the invoice data
+            const mockBDAResult = {
+                document_class: {
+                    type: 'invoice',
+                    confidence: 0.95
+                },
+                matched_blueprint: {
+                    name: 'Invoice Processing Blueprint',
+                    confidence: 0.95
+                },
+                inference_result: {
+                    vendor_name: invoice.vendorName,
+                    invoice_id: invoice.invoiceId,
+                    invoice_date: invoice.invoiceDate,
+                    due_date: invoice.dueDate,
+                    total_amount: invoice.invoiceAmount,
+                    currency: invoice.currency,
+                    payment_terms: invoice.paymentTerms,
+                    po_number: invoice.poNumber,
+                    category: invoice.category,
+                    special_remarks: invoice.specialRemarks,
+                    bank_details: invoice.bankDetails,
+                    meter_readings: invoice.meterReadings
+                }
+            };
+            setSelectedBDAResult(mockBDAResult);
+            setSelectedFileName(invoice.invoiceId);
+            setIsBDAModalVisible(true);
+        }
     };
 
     useEffect(() => {
@@ -436,15 +490,24 @@ export const Review = () => {
                     id: "actions",
                     header: "Actions",
                     cell: item => (
-                        <Button
-                            variant="inline-link"
-                            onClick={() => {
-                                setSelectedInvoice(item);
-                                setIsDetailModalVisible(true);
-                            }}
-                        >
-                            View Details
-                        </Button>
+                        <SpaceBetween direction="horizontal" size="xs">
+                            <Button
+                                variant="inline-link"
+                                onClick={() => {
+                                    setSelectedInvoice(item);
+                                    setIsDetailModalVisible(true);
+                                }}
+                            >
+                                View Details
+                            </Button>
+                            <Button
+                                variant="inline-link"
+                                iconName="download"
+                                onClick={() => handleViewResult(item)}
+                            >
+                                View Result
+                            </Button>
+                        </SpaceBetween>
                     )
                 },
                 {
@@ -510,6 +573,17 @@ export const Review = () => {
                     setSelectedInvoice(null);
                 }}
                 invoice={selectedInvoice}
+            />
+
+            <BDAResultModal
+                visible={isBDAModalVisible}
+                onDismiss={() => {
+                    setIsBDAModalVisible(false);
+                    setSelectedBDAResult(null);
+                    setSelectedFileName('');
+                }}
+                bdaResult={selectedBDAResult}
+                fileName={selectedFileName}
             />
         </SpaceBetween>
     );

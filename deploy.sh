@@ -3,6 +3,9 @@
 # Bedrock Agentic Invoice Assistant - Simple Deployment Script
 # This script handles CDK bootstrap and application deployment
 
+# AWS credentials should be configured via AWS CLI or environment variables
+# Run 'aws configure' to set up your credentials before running this script
+
 set -e  # Exit on any error
 
 echo "🚀 Deploying Bedrock Agentic Invoice Assistant"

@@ -19,6 +19,7 @@ import { QUERY_KEYS } from "../utils/types";
 import { BDAResult } from '../utils/config';
 import { DocPanel } from '../components/DocPanel';
 import { InvoiceForm } from "../components/ApprovalForm"; // Note: This component now handles invoice processing
+import { BDAResultModal } from '../components/BDAResultModal';
 
 
 export const Portal = () => {
@@ -34,6 +35,9 @@ export const Portal = () => {
     const [showInvoiceForm, setShowInvoiceForm] = useState(false);
     const [formData, setFormData] = useState<any>(null);
     const [extractedData, setExtractedData] = useState<any>(null);
+    const [selectedBDAResult, setSelectedBDAResult] = useState<any>(null);
+    const [selectedFileName, setSelectedFileName] = useState<string>('');
+    const [isBDAModalVisible, setIsBDAModalVisible] = useState(false);
 
     const handleGenerateClick = () => {
         const initialFormData = {
@@ -63,6 +67,15 @@ export const Portal = () => {
 
     const handlePreview = (formData: any) => {
         console.log('Preview data:', formData);
+    };
+
+    const handleViewBDAResult = (item: any) => {
+        const bdaResult = documentResults[item.itemName];
+        if (bdaResult) {
+            setSelectedBDAResult(bdaResult);
+            setSelectedFileName(item.itemName);
+            setIsBDAModalVisible(true);
+        }
     };
 
     const findMatchingBdaFile = async (documentName: string) => {
@@ -246,32 +259,33 @@ export const Portal = () => {
     };
     
     return (
-        <AppLayout
-            content={
-                <SpaceBetween size="l">
-                    <BreadcrumbGroup
-                        items={[
-                            { text: "Invoice Processing System", href: "/" },
-                            { 
-                                text: "Invoice List",
-                                href: "/review",
-                            },
-                            { 
-                                text: applicationId || 'Application Details',
-                                href: "#" 
-                            }
-                        ]}
-                        ariaLabel="Breadcrumbs"
-                    />
+        <>
+            <AppLayout
+                content={
+                    <SpaceBetween size="l">
+                        <BreadcrumbGroup
+                            items={[
+                                { text: "Invoice Processing System", href: "/" },
+                                { 
+                                    text: "Invoice List",
+                                    href: "/review",
+                                },
+                                { 
+                                    text: applicationId || 'Application Details',
+                                    href: "#" 
+                                }
+                            ]}
+                            ariaLabel="Breadcrumbs"
+                            />
     
-                    <Container header={<Header variant="h2">Invoice overview</Header>}>
-                        <ColumnLayout columns={4} variant="text-grid">
-                            <div>
-                                <Box variant="awsui-key-label">Vendor name</Box>
-                                <Box variant="p">
-                                    {extractedData?.vendor || 'Unknown Vendor'}
-                                </Box>
-                            </div>
+                        <Container header={<Header variant="h2">Invoice overview</Header>}>
+                            <ColumnLayout columns={4} variant="text-grid">
+                                <div>
+                                    <Box variant="awsui-key-label">Vendor name</Box>
+                                    <Box variant="p">
+                                        {extractedData?.vendor || 'Unknown Vendor'}
+                                    </Box>
+                                </div>
                             <div>
                                 <Box variant="awsui-key-label">Invoice date</Box>
                                 <Box variant="p">
@@ -464,6 +478,34 @@ export const Portal = () => {
                                         );
                                     },
                                     minWidth: 200
+                                },
+                                {
+                                    id: "actions",
+                                    header: "Actions",
+                                    cell: item => {
+                                        const bdaResult = documentResults[item.itemName];
+                                        return (
+                                            <SpaceBetween direction="horizontal" size="xs">
+                                                <Button
+                                                    variant="inline-link"
+                                                    iconName="view-horizontal"
+                                                    onClick={() => handleThumbnailClick(item)}
+                                                >
+                                                    Preview
+                                                </Button>
+                                                {bdaResult && (
+                                                    <Button
+                                                        variant="inline-link"
+                                                        iconName="download"
+                                                        onClick={() => handleViewBDAResult(item)}
+                                                    >
+                                                        View Result
+                                                    </Button>
+                                                )}
+                                            </SpaceBetween>
+                                        );
+                                    },
+                                    minWidth: 180
                                 }
                             ]}
                             items={documentItems?.map(item => ({
@@ -672,5 +714,17 @@ export const Portal = () => {
             toolsHide={true} 
             navigationHide={true}
         />
+
+        <BDAResultModal
+            visible={isBDAModalVisible}
+            onDismiss={() => {
+                setIsBDAModalVisible(false);
+                setSelectedBDAResult(null);
+                setSelectedFileName('');
+            }}
+            bdaResult={selectedBDAResult}
+            fileName={selectedFileName}
+        />
+        </>
     );
 };

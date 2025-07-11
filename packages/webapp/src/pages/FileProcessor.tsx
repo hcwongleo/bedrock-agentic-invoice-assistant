@@ -33,6 +33,58 @@ export const FileProcessor = () => {
     // Use the new BDA results hook
     const { data: bdaResults, isLoading: isBDALoading } = useBDAResults();
 
+    // Helper function to render JSON data as a table
+    const renderJsonTable = (data: any): JSX.Element => {
+        if (!data || typeof data !== 'object') {
+            return <Box>{String(data || 'N/A')}</Box>;
+        }
+
+        if (Array.isArray(data)) {
+            return (
+                <div>
+                    {data.map((item, index) => (
+                        <div key={index} style={{ marginBottom: '0.5rem' }}>
+                            <Box fontWeight="bold">Item {index + 1}:</Box>
+                            {renderJsonTable(item)}
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        return (
+            <table style={{ 
+                width: '100%', 
+                borderCollapse: 'collapse',
+                fontSize: '14px'
+            }}>
+                <tbody>
+                    {Object.entries(data).map(([key, value]) => (
+                        <tr key={key} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                            <td style={{ 
+                                padding: '8px 12px',
+                                fontWeight: 'bold',
+                                backgroundColor: '#f9fafb',
+                                verticalAlign: 'top',
+                                width: '30%',
+                                wordBreak: 'break-word'
+                            }}>
+                                {key}
+                            </td>
+                            <td style={{ 
+                                padding: '8px 12px',
+                                verticalAlign: 'top',
+                                wordBreak: 'break-word'
+                            }}>
+                                {typeof value === 'object' ? renderJsonTable(value) : String(value || 'N/A')}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        );
+    };
+
     // Handle file upload completion
     const handleUploadComplete = (fileName: string) => {
         const newFile: ProcessedFile = {
@@ -51,11 +103,14 @@ export const FileProcessor = () => {
 
     // Update file status based on BDA results
     useEffect(() => {
+        console.log('🚀 ~ FileProcessor ~ bdaResults:', bdaResults);
         if (bdaResults && bdaResults.length > 0) {
             setProcessedFiles(prev => 
                 prev.map(file => {
+                    console.log('🚀 ~ FileProcessor ~ processing file:', file);
                     if (file.status === 'processing') {
                         const bdaResult = findBDAResultForFile(file.fileName, bdaResults);
+                        console.log('🚀 ~ FileProcessor ~ bdaResult for', file.fileName, ':', bdaResult);
                         
                         if (bdaResult) {
                             return {
@@ -104,18 +159,18 @@ export const FileProcessor = () => {
                     <ColumnLayout columns={3}>
                         <div>
                             <Box variant="awsui-key-label">Total Files</Box>
-                            <Box fontSize="display-l">{processedFiles.length}</Box>
+                            <Box fontSize="display-l">{String(processedFiles.length)}</Box>
                         </div>
                         <div>
                             <Box variant="awsui-key-label">Completed</Box>
                             <Box fontSize="display-l" color="text-status-success">
-                                {processedFiles.filter(f => f.status === 'completed').length}
+                                {String(processedFiles.filter(f => f.status === 'completed').length)}
                             </Box>
                         </div>
                         <div>
                             <Box variant="awsui-key-label">Processing</Box>
                             <Box fontSize="display-l" color="text-status-info">
-                                {processedFiles.filter(f => f.status === 'processing').length}
+                                {String(processedFiles.filter(f => f.status === 'processing').length)}
                             </Box>
                         </div>
                     </ColumnLayout>
@@ -136,9 +191,9 @@ export const FileProcessor = () => {
                             <Container key={index}>
                                 <SpaceBetween direction="horizontal" size="m">
                                     <div style={{ flex: 1 }}>
-                                        <Box fontWeight="bold">{file.fileName}</Box>
+                                        <Box fontWeight="bold">{String(file.fileName || 'Unknown file')}</Box>
                                         <Box color="text-body-secondary" fontSize="body-s">
-                                            Uploaded: {file.uploadTime.toLocaleString()}
+                                            Uploaded: {file.uploadTime ? file.uploadTime.toLocaleString() : 'Unknown time'}
                                         </Box>
                                     </div>
                                     <div>
@@ -215,40 +270,28 @@ export const FileProcessor = () => {
                     <SpaceBetween size="m">
                         <div>
                             <Box variant="awsui-key-label">Matched Blueprint</Box>
-                            <Box>{selectedResult.matched_blueprint || 'N/A'}</Box>
+                            <Box>{selectedResult.matched_blueprint?.name || selectedResult.matched_blueprint?.arn || 'N/A'}</Box>
+                            {selectedResult.matched_blueprint?.confidence && (
+                                <Box color="text-body-secondary" fontSize="body-s">
+                                    Confidence: {(selectedResult.matched_blueprint.confidence * 100).toFixed(1)}%
+                                </Box>
+                            )}
                         </div>
                         <div>
                             <Box variant="awsui-key-label">Document Class</Box>
-                            <Box>{selectedResult.document_class || 'N/A'}</Box>
+                            <Box>{selectedResult.document_class?.type || 'N/A'}</Box>
                         </div>
                         <div>
                             <Box variant="awsui-key-label">Inference Result</Box>
-                            <CodeEditor
-                                ace={undefined}
-                                language="json"
-                                value={JSON.stringify(selectedResult.inference_result, null, 2)}
-                                loading={false}
-                                onPreferencesChange={() => {}}
-                                i18nStrings={{
-                                    loadingState: "Loading code editor",
-                                    errorState: "There was an error loading the code editor.",
-                                    errorStateRecovery: "Retry",
-                                    editorGroupAriaLabel: "Code editor",
-                                    statusBarGroupAriaLabel: "Status bar",
-                                    cursorPosition: (row, column) => `Ln ${row}, Col ${column}`,
-                                    errorsTab: "Errors",
-                                    warningsTab: "Warnings",
-                                    preferencesButtonAriaLabel: "Preferences",
-                                    paneCloseButtonAriaLabel: "Close",
-                                    preferencesModalHeader: "Preferences",
-                                    preferencesModalCancel: "Cancel",
-                                    preferencesModalConfirm: "Confirm",
-                                    preferencesModalWrapLines: "Wrap lines",
-                                    preferencesModalTheme: "Theme",
-                                    preferencesModalLightThemes: "Light themes",
-                                    preferencesModalDarkThemes: "Dark themes"
-                                }}
-                            />
+                            <div style={{ 
+                                border: '1px solid #d1d5db',
+                                borderRadius: '6px',
+                                overflow: 'hidden',
+                                maxHeight: '500px',
+                                overflowY: 'auto'
+                            }}>
+                                {renderJsonTable(selectedResult.inference_result)}
+                            </div>
                         </div>
                     </SpaceBetween>
                 )}
