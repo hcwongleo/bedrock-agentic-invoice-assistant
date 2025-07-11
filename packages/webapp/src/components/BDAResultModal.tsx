@@ -8,9 +8,12 @@ import {
     Table,
     StatusIndicator,
     Tabs,
-    Alert
+    Alert,
+    Badge,
+    ColumnLayout
 } from "@cloudscape-design/components";
 import { useState } from 'react';
+import { MatchResult } from '../services/supplierMatching';
 
 interface BDAResultModalProps {
     visible: boolean;
@@ -247,6 +250,137 @@ export const BDAResultModal = ({ visible, onDismiss, bdaResult, fileName }: BDAR
                                             </Box>
                                         }
                                     />
+                                </Container>
+                            )
+                        },
+                        {
+                            id: "supplier-match",
+                            label: "Supplier Matching",
+                            content: (
+                                <Container header={<Header variant="h3">Supplier Code Matching</Header>}>
+                                    <SpaceBetween size="l">
+                                        {bdaResult.supplier_match ? (
+                                            <>
+                                                <ColumnLayout columns={2}>
+                                                    <Box>
+                                                        <Box variant="awsui-key-label">Extracted Vendor Name</Box>
+                                                        <Box variant="p">
+                                                            {bdaResult.supplier_match.vendor_name_extracted || 'Not found'}
+                                                        </Box>
+                                                    </Box>
+                                                    <Box>
+                                                        <Box variant="awsui-key-label">Best Match</Box>
+                                                        <Box variant="p">
+                                                            {bdaResult.supplier_match.matched_supplier ? (
+                                                                <SpaceBetween size="xs" direction="horizontal">
+                                                                    <Badge 
+                                                                        color={
+                                                                            bdaResult.supplier_match.matched_supplier.confidence === 'high' ? 'green' :
+                                                                            bdaResult.supplier_match.matched_supplier.confidence === 'medium' ? 'blue' : 'grey'
+                                                                        }
+                                                                    >
+                                                                        {bdaResult.supplier_match.matched_supplier.supplierCode}
+                                                                    </Badge>
+                                                                    <span>({(bdaResult.supplier_match.matched_supplier.similarity * 100).toFixed(1)}% match)</span>
+                                                                </SpaceBetween>
+                                                            ) : (
+                                                                <Badge color="red">No match found</Badge>
+                                                            )}
+                                                        </Box>
+                                                    </Box>
+                                                </ColumnLayout>
+
+                                                {bdaResult.supplier_match.matched_supplier && (
+                                                    <Alert type="success" header="Supplier Match Found">
+                                                        <Box>
+                                                            <strong>Supplier Code:</strong> {bdaResult.supplier_match.matched_supplier.supplierCode}<br/>
+                                                            <strong>Supplier Name:</strong> {bdaResult.supplier_match.matched_supplier.supplierName}<br/>
+                                                            <strong>Confidence:</strong> {bdaResult.supplier_match.matched_supplier.confidence.toUpperCase()}<br/>
+                                                            <strong>Similarity Score:</strong> {(bdaResult.supplier_match.matched_supplier.similarity * 100).toFixed(1)}%
+                                                        </Box>
+                                                    </Alert>
+                                                )}
+
+                                                {bdaResult.supplier_match.top_matches && bdaResult.supplier_match.top_matches.length > 0 && (
+                                                    <Container header={<Header variant="h3">Top Matching Suppliers</Header>}>
+                                                        <Table
+                                                            columnDefinitions={[
+                                                                {
+                                                                    id: "rank",
+                                                                    header: "Rank",
+                                                                    cell: (item: MatchResult) => {
+                                                                        const index = bdaResult.supplier_match.top_matches?.indexOf(item) ?? -1;
+                                                                        return index + 1;
+                                                                    },
+                                                                    width: 60
+                                                                },
+                                                                {
+                                                                    id: "code",
+                                                                    header: "Supplier Code",
+                                                                    cell: (item: MatchResult) => (
+                                                                        <Badge 
+                                                                            color={
+                                                                                item.confidence === 'high' ? 'green' :
+                                                                                item.confidence === 'medium' ? 'blue' : 'grey'
+                                                                            }
+                                                                        >
+                                                                            {item.supplierCode}
+                                                                        </Badge>
+                                                                    ),
+                                                                    width: 120
+                                                                },
+                                                                {
+                                                                    id: "name",
+                                                                    header: "Supplier Name",
+                                                                    cell: (item: MatchResult) => item.supplierName,
+                                                                    width: 300
+                                                                },
+                                                                {
+                                                                    id: "similarity",
+                                                                    header: "Similarity",
+                                                                    cell: (item: MatchResult) => `${(item.similarity * 100).toFixed(1)}%`,
+                                                                    width: 100
+                                                                },
+                                                                {
+                                                                    id: "confidence",
+                                                                    header: "Confidence",
+                                                                    cell: (item: MatchResult) => (
+                                                                        <StatusIndicator 
+                                                                            type={
+                                                                                item.confidence === 'high' ? 'success' :
+                                                                                item.confidence === 'medium' ? 'warning' : 'error'
+                                                                            }
+                                                                        >
+                                                                            {item.confidence.toUpperCase()}
+                                                                        </StatusIndicator>
+                                                                    ),
+                                                                    width: 100
+                                                                }
+                                                            ]}
+                                                            items={bdaResult.supplier_match.top_matches}
+                                                            variant="embedded"
+                                                            stripedRows
+                                                            contentDensity="compact"
+                                                            empty={
+                                                                <Box textAlign="center" color="inherit">
+                                                                    <b>No matching suppliers found</b>
+                                                                </Box>
+                                                            }
+                                                        />
+                                                    </Container>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <Alert type="info" header="Supplier Matching Not Available">
+                                                Supplier matching could not be performed. This may be because:
+                                                <ul>
+                                                    <li>No vendor name was extracted from the document</li>
+                                                    <li>The supplier list is not available</li>
+                                                    <li>There was an error during the matching process</li>
+                                                </ul>
+                                            </Alert>
+                                        )}
+                                    </SpaceBetween>
                                 </Container>
                             )
                         },

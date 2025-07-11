@@ -39,6 +39,7 @@
     }
   },
   "dependencies": {
-    "@cdklabs/generative-ai-cdk-constructs": "^0.1.293"
+    "@cdklabs/generative-ai-cdk-constructs": "^0.1.293",
+    "xlsx": "^0.18.5"
   }
 }

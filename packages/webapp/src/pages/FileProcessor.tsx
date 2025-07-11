@@ -14,6 +14,7 @@ import {
     TabsProps
 } from "@cloudscape-design/components";
 import { FileUpload } from '../components/FileUpload';
+import { SupplierListManager } from '../components/SupplierListManager';
 import { useBDAResults, findBDAResultForFile, BDAResult } from '../hooks/useBDAResults';
 
 interface ProcessedFile {
@@ -213,6 +214,11 @@ export const FileProcessor = () => {
                     )}
                 </SpaceBetween>
             )
+        },
+        {
+            label: "Supplier Management",
+            id: "suppliers",
+            content: <SupplierListManager />
         }
     ];
 

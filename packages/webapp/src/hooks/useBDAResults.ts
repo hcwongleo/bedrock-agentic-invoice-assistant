@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { downloadData, list } from 'aws-amplify/storage';
 import { QUERY_KEYS } from "../utils/types";
+import { supplierMatcher, MatchResult } from "../services/supplierMatching";
 
 export interface BDAResult {
     matched_blueprint?: {
@@ -12,6 +13,12 @@ export interface BDAResult {
         type?: string;
     };
     inference_result?: any;
+    // Enhanced with supplier matching
+    supplier_match?: {
+        matched_supplier?: MatchResult;
+        top_matches?: MatchResult[];
+        vendor_name_extracted?: string;
+    };
 }
 
 export interface BDAResultFile {
@@ -21,6 +28,98 @@ export interface BDAResultFile {
     result?: BDAResult;
 }
 
+// Helper function to extract vendor name from BDA inference result
+const extractVendorName = (inferenceResult: any): string | null => {
+    if (!inferenceResult) return null;
+    
+    // Try different possible paths where vendor name might be stored
+    const possiblePaths = [
+        'vendor_name',
+        'supplier_name',
+        'company_name',
+        'from',
+        'bill_from',
+        'seller',
+        'vendor',
+        'supplier'
+    ];
+    
+    // Check direct properties
+    for (const path of possiblePaths) {
+        if (inferenceResult[path]) {
+            const value = inferenceResult[path];
+            if (typeof value === 'string') return value;
+            if (typeof value === 'object' && value.value) return value.value;
+        }
+    }
+    
+    // Check nested structures
+    if (inferenceResult.fields) {
+        for (const path of possiblePaths) {
+            if (inferenceResult.fields[path]) {
+                const field = inferenceResult.fields[path];
+                if (typeof field === 'string') return field;
+                if (typeof field === 'object' && field.value) return field.value;
+            }
+        }
+    }
+    
+    // Check if there's a general structure with extracted text
+    if (inferenceResult.extracted_text) {
+        // Try to find vendor name in extracted text using patterns
+        const text = inferenceResult.extracted_text.toLowerCase();
+        const vendorPatterns = [
+            /vendor[:\s]+([^\n\r]+)/i,
+            /supplier[:\s]+([^\n\r]+)/i,
+            /from[:\s]+([^\n\r]+)/i,
+            /bill\s+from[:\s]+([^\n\r]+)/i
+        ];
+        
+        for (const pattern of vendorPatterns) {
+            const match = text.match(pattern);
+            if (match && match[1]) {
+                return match[1].trim();
+            }
+        }
+    }
+    
+    return null;
+};
+
+// Enhanced function to process BDA results with supplier matching
+const enhanceBDAResultWithSupplierMatch = async (result: BDAResult): Promise<BDAResult> => {
+    const vendorName = extractVendorName(result.inference_result);
+    
+    if (!vendorName) {
+        return result;
+    }
+    
+    try {
+        const [bestMatch, topMatches] = await Promise.all([
+            supplierMatcher.findBestMatch(vendorName),
+            supplierMatcher.findTopMatches(vendorName, 3)
+        ]);
+        
+        return {
+            ...result,
+            supplier_match: {
+                vendor_name_extracted: vendorName,
+                matched_supplier: bestMatch || undefined,
+                top_matches: topMatches
+            }
+        };
+    } catch (error) {
+        console.error('Error matching supplier for vendor:', vendorName, error);
+        return {
+            ...result,
+            supplier_match: {
+                vendor_name_extracted: vendorName,
+                matched_supplier: undefined,
+                top_matches: []
+            }
+        };
+    }
+};
 const fetchBDAResults = async (): Promise<BDAResultFile[]> => {
     try {
         console.log('🚀 ~ fetchBDAResults ~ Starting to fetch BDA results');
@@ -60,11 +159,15 @@ const fetchBDAResults = async (): Promise<BDAResultFile[]> => {
                     const jsonResult = JSON.parse(text) as BDAResult;
                     console.log('🚀 ~ fetchBDAResults ~ parsed JSON for', item.path, ':', jsonResult);
                     
+                    // Enhance with supplier matching
+                    const enhancedResult = await enhanceBDAResultWithSupplierMatch(jsonResult);
+                    console.log('🚀 ~ fetchBDAResults ~ enhanced with supplier match:', enhancedResult);
+                    
                     return {
                         fileName: item.path!.split('/').pop() || '',
                         path: item.path!,
                         lastModified: item.lastModified,
-                        result: jsonResult
+                        result: enhancedResult
                     };
                 } catch (error) {
                     console.error(`Error fetching BDA result for ${item.path}:`, error);
