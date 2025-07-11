@@ -148,13 +148,10 @@ export const InfoPanel = () => {
                                 <strong>2. Monitor Processing:</strong> Watch the real-time processing status as Amazon Bedrock Data Automation extracts data
                             </Box>
                             <Box variant="p">
-                                <strong>3. View Results:</strong> Click "View Results" when processing completes to see extracted invoice data
+                                <strong>3. View Results:</strong> Click "View Results" when processing completes to see detailed extracted invoice data in JSON format
                             </Box>
                             <Box variant="p">
-                                <strong>4. Review Dashboard:</strong> Use the Review section to verify and manage all processed documents
-                            </Box>
-                            <Box variant="p">
-                                <strong>5. Export Data:</strong> Generate reports and export processed data for integration with your systems
+                                <strong>4. Process Multiple Files:</strong> Upload and process multiple documents simultaneously for batch processing
                             </Box>
                         </SpaceBetween>
                     </Container>

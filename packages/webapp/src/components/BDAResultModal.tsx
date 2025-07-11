@@ -277,7 +277,7 @@ export const BDAResultModal = ({ visible, onDismiss, bdaResult, fileName }: BDAR
                 <Container header={<Header variant="h3">Next Steps</Header>}>
                     <SpaceBetween size="s">
                         <Box variant="p">
-                            <strong>1. Review the extracted data</strong> - Check the CSV format view above to ensure all important fields were captured correctly.
+                            <strong>1. Verify the extracted data</strong> - Check the CSV format view above to ensure all important fields were captured correctly.
                         </Box>
                         <Box variant="p">
                             <strong>2. Download or copy the CSV</strong> - Use the buttons above to get the data in CSV format for further processing.
